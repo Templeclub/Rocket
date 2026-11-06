@@ -14,6 +14,7 @@ import { IconPlus, IconStar } from '../components/Icons';
 import { useToast } from '../components/Toast';
 import { useNav, useSettings } from '../hooks';
 import { useInstallPrompt } from '../install';
+import { AvailabilitySection, ProgramSection } from './ProgramSettings';
 
 function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
@@ -34,6 +35,8 @@ export function SettingsView() {
 
   return (
     <div className="space-y-3">
+      <ProgramSection />
+      <AvailabilitySection />
       <Section title="Profil">
         <div className="grid grid-cols-2 gap-2">
           <Field label="FTP (W)">
@@ -327,7 +330,7 @@ function AppSection() {
       ) : (
         <p className="text-sm text-muted">Pour installer : menu ⋮ de Chrome → « Ajouter à l’écran d’accueil ».</p>
       )}
-      <p className="text-xs text-muted">DesertusPlan · phase 0 · fuseau {CONFIG.timeZone}</p>
+      <p className="text-xs text-muted">{CONFIG.appName} · phase 1 · fuseau {CONFIG.timeZone}</p>
     </Section>
   );
 }

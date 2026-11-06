@@ -77,7 +77,7 @@ export function ContentForm<T extends SessionContent>({
       <Field label="Titre">
         <input className={inputCls} value={value.title} onChange={(e) => set({ title: e.target.value })} />
       </Field>
-      <Field label="Sport">
+      <Field label="Sport" group>
         <SportPicker value={key} onChange={(k) => set(fromSportKey(k))} />
       </Field>
       <div className="grid grid-cols-2 gap-2">
@@ -89,7 +89,7 @@ export function ContentForm<T extends SessionContent>({
             ))}
           </datalist>
         </Field>
-        <Field label="Priorité">
+        <Field label="Priorité" group>
           <Segmented
             value={value.priority}
             onChange={(priority) => set({ priority })}

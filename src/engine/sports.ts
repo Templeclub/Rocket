@@ -3,12 +3,12 @@ import type { Environment, Sport, SportKey } from './types';
 export const SPORT_KEYS: SportKey[] = ['gravel-out', 'gravel-in', 'run', 'swim', 'football', 'enduro'];
 
 export const SPORT_META: Record<SportKey, { label: string; short: string; emoji: string; color: string }> = {
-  'gravel-out': { label: 'Gravel extérieur', short: 'Gravel', emoji: '🚵', color: '#e0892b' },
-  'gravel-in': { label: 'Home-trainer', short: 'HT', emoji: '🏠', color: '#8b6cf0' },
-  run: { label: 'Course à pied', short: 'Course', emoji: '🏃', color: '#3fae6a' },
-  swim: { label: 'Natation', short: 'Natation', emoji: '🏊', color: '#2f9ad6' },
-  football: { label: 'Football', short: 'Foot', emoji: '⚽', color: '#d65a5a' },
-  enduro: { label: 'Enduro', short: 'Enduro', emoji: '🏍️', color: '#9a8466' },
+  'gravel-out': { label: 'Gravel extérieur', short: 'Gravel', emoji: '🚵', color: 'var(--sp-gravel-out)' },
+  'gravel-in': { label: 'Home-trainer', short: 'HT', emoji: '🏠', color: 'var(--sp-gravel-in)' },
+  run: { label: 'Course à pied', short: 'Course', emoji: '🏃', color: 'var(--sp-run)' },
+  swim: { label: 'Natation', short: 'Natation', emoji: '🏊', color: 'var(--sp-swim)' },
+  football: { label: 'Football', short: 'Foot', emoji: '⚽', color: 'var(--sp-football)' },
+  enduro: { label: 'Enduro', short: 'Enduro', emoji: '🏍️', color: 'var(--sp-enduro)' },
 };
 
 export function sportKey(sport: Sport, environment: Environment): SportKey {

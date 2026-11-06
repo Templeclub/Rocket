@@ -1,10 +1,12 @@
 // Format de sauvegarde JSON et validation à l'import. Module pur.
 
 import { isLocalDate } from './dates';
-import type { Activity, AppSettings, Goal, PlannedSession, SessionTemplate } from './types';
+import type { Activity, AppSettings, Goal, PlannedSession, Recommendation, SessionTemplate, WeekPlan } from './types';
 
-export const BACKUP_APP = 'desertusplan';
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_APP = 'ascese';
+/** Identifiant des sauvegardes faites avant le changement de nom (toujours acceptées). */
+export const LEGACY_BACKUP_APPS = ['desertusplan'];
+export const BACKUP_SCHEMA_VERSION = 2;
 
 export interface BackupData {
   sessions: PlannedSession[];
@@ -12,6 +14,8 @@ export interface BackupData {
   templates: SessionTemplate[];
   goals: Goal[];
   settings: AppSettings[];
+  weeks: WeekPlan[];
+  recommendations: Recommendation[];
 }
 
 export interface Backup {
@@ -26,7 +30,7 @@ export function makeBackup(data: BackupData, now: Date = new Date()): Backup {
 }
 
 export function backupFileName(now: Date = new Date()): string {
-  return `desertusplan-${now.toISOString().slice(0, 10)}.json`;
+  return `ascese-${now.toISOString().slice(0, 10)}.json`;
 }
 
 const SPORTS = new Set(['gravel', 'run', 'swim', 'football', 'enduro']);
@@ -77,6 +81,17 @@ const goal: Check = (x) => {
   return null;
 };
 
+const week: Check = (x) => {
+  if (!isLocalDate(x.weekStart)) return 'semaine invalide';
+  if (!isStr(x.phase) || !isStr(x.kind) || !isNum(x.targetHours)) return 'semaine incomplète';
+  return null;
+};
+
+const recommendation: Check = (x) => {
+  if (!isStr(x.id) || !isLocalDate(x.weekStart)) return 'recommandation invalide';
+  return null;
+};
+
 const settings: Check = (x) => {
   if (x.id !== 'app') return 'id de paramètres invalide';
   const p = x.profile;
@@ -95,7 +110,9 @@ export function parseBackup(text: string): ParseResult {
   } catch {
     return { ok: false, errors: ['Fichier illisible : ce n’est pas du JSON.'] };
   }
-  if (!isObj(raw) || raw.app !== BACKUP_APP) return { ok: false, errors: ['Ce fichier n’est pas une sauvegarde DesertusPlan.'] };
+  if (!isObj(raw) || (raw.app !== BACKUP_APP && !LEGACY_BACKUP_APPS.includes(raw.app as string))) {
+    return { ok: false, errors: ['Ce fichier n’est pas une sauvegarde Ascèse.'] };
+  }
   if (!isNum(raw.schemaVersion) || (raw.schemaVersion as number) > BACKUP_SCHEMA_VERSION) {
     return { ok: false, errors: [`Version de sauvegarde non prise en charge (${String(raw.schemaVersion)}).`] };
   }
@@ -108,6 +125,8 @@ export function parseBackup(text: string): ParseResult {
     ['templates', content],
     ['goals', goal],
     ['settings', settings],
+    ['weeks', week],
+    ['recommendations', recommendation],
   ];
   const data = raw.data as Record<string, unknown>;
   for (const [name, check] of tables) {
@@ -120,8 +139,11 @@ export function parseBackup(text: string): ParseResult {
     arr.forEach((item, i) => {
       const e = isObj(item) ? check(item) : 'élément invalide';
       if (e) errors.push(`${name}[${i}] : ${e}`);
-      else if (ids.has(item.id as string)) errors.push(`${name}[${i}] : id en double`);
-      else ids.add(item.id as string);
+      else {
+        const key = (item.id ?? item.weekStart) as string;
+        if (ids.has(key)) errors.push(`${name}[${i}] : id en double`);
+        else ids.add(key);
+      }
     });
   }
   if (errors.length) return { ok: false, errors: errors.slice(0, 10) };
@@ -136,6 +158,8 @@ export function parseBackup(text: string): ParseResult {
       templates: (data.templates ?? []) as SessionTemplate[],
       goals: (data.goals ?? []) as Goal[],
       settings: (data.settings ?? []) as AppSettings[],
+      weeks: (data.weeks ?? []) as WeekPlan[],
+      recommendations: (data.recommendations ?? []) as Recommendation[],
     },
   };
   return { ok: true, backup };

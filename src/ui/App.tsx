@@ -8,6 +8,7 @@ import { NavCtx, type Nav, type Overlay } from './hooks';
 import { MonthView } from './views/MonthView';
 import { WeekView } from './views/WeekView';
 import { ActivitySheet, NewSessionSheet, SessionSheet, TemplateSheet } from './views/SessionSheet';
+import { ReviewSheet } from './views/ReviewSheet';
 import { SettingsView } from './views/SettingsView';
 
 type View = 'week' | 'month' | 'settings';
@@ -28,6 +29,8 @@ function OverlayView({ o }: { o: Overlay }) {
       return <PostponeSheet id={o.id} />;
     case 'swap':
       return <SwapSheet id={o.id} />;
+    case 'review':
+      return <ReviewSheet weekStart={o.weekStart} />;
   }
 }
 

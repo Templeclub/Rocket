@@ -7,6 +7,7 @@ import { summarize, type SportHours } from '../../engine/stats';
 import type { Activity, LocalDate, PlannedSession } from '../../engine/types';
 import { formatHours } from '../../engine/zones';
 import { IconPlus } from '../components/Icons';
+import { ProgramEmptyCard, ReminderBanner, WeekPlanHeader } from '../components/ProgramCards';
 import { ActivityCard, SessionCard } from '../components/SessionCard';
 import { useNav, useToday } from '../hooks';
 
@@ -62,6 +63,7 @@ export function WeekView({ weekStart, focusDate }: { weekStart: LocalDate; focus
   const sessions = useLiveQuery(() => db.sessions.where('date').between(weekStart, end, true, false).toArray(), [weekStart]) ?? [];
   const activities = useLiveQuery(() => db.activities.where('date').between(weekStart, end, true, false).toArray(), [weekStart]) ?? [];
   const goal = useLiveQuery(() => db.goals.where('date').aboveOrEqual(today).first(), [today]);
+  const weekCount = useLiveQuery(() => db.weeks.count(), []);
   const dayRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
@@ -81,6 +83,9 @@ export function WeekView({ weekStart, focusDate }: { weekStart: LocalDate; focus
           {goal.name} dans {diffDays(goal.date, today)} jours
         </div>
       )}
+      {weekCount === 0 && <ProgramEmptyCard />}
+      <ReminderBanner />
+      <WeekPlanHeader weekStart={weekStart} />
       <WeekSummaryPanel sessions={sessions} activities={activities} weekStart={weekStart} />
 
       {weekDays(weekStart).map((d) => {

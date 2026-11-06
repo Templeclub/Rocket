@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'DesertusPlan',
-        short_name: 'Desertus',
-        description: 'Planification d’entraînement vers le Desertus Bikus',
+        name: 'Ascèse',
+        short_name: 'Ascèse',
+        description: 'Planifier, s’astreindre, ajuster : entraînement vers le Desertus Bikus',
         lang: 'fr',
         start_url: '/',
         scope: '/',
