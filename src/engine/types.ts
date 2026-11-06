@@ -70,6 +70,8 @@ export interface PlannedSession extends SessionContent {
   templateId?: string;
   /** Variante basculable en 1 tap (home-trainer pour une sortie, natation pour une course). */
   alternative?: SessionContent;
+  /** Séance confirmée par moi ; sinon « recommandée » par le programme. */
+  confirmed?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -134,17 +136,22 @@ export interface AvailabilityException {
 export interface Availability {
   /** Clés 1 (lundi) à 7 (dimanche). */
   template: Record<number, DayAvailability>;
-  footballDay: number;
+  /** Jours de foot (1 = lundi … 7 = dimanche) : obligatoires sauf à Paris. */
+  footballDays: number[];
   footballMin: number;
+  /** Jours à Paris saisis pour une semaine (clé : lundi). Sinon : jours « Paris » de la semaine type. */
+  parisByWeek: Record<LocalDate, LocalDate[]>;
   weekdayMorningStart: string;
   exceptions: AvailabilityException[];
 }
 
 export interface VolumeSettings {
-  /** Heures totales par semaine au départ (foot compris). */
+  /** Heures d'endurance (vélo, course, natation, hors foot) par semaine au départ. */
   startWeeklyHours: number;
-  /** Pic de volume (heures totales) tant que le rythme réel ne permet pas plus. */
+  /** Pic d'heures d'endurance tant que le rythme réel ne permet pas plus. */
   peakWeeklyHours: number;
+  /** Base de calcul ; absent = ancienne version (heures totales, foot compris). */
+  basis?: 'endurance';
 }
 
 export interface AppSettings {
@@ -165,7 +172,7 @@ export interface WeekPlan {
   weekStart: LocalDate;
   phase: Phase;
   kind: WeekKind;
-  /** Cible en heures totales (foot compris). */
+  /** Cible en heures d'endurance (vélo, course, natation ; le foot est en plus). */
   targetHours: number;
   /** Plus longue sortie prévue (minutes). */
   longRideMin: number;

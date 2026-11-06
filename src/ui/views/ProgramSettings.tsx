@@ -59,17 +59,17 @@ export function ProgramSection() {
             ))}
           </ul>
           <p className="text-xs text-muted">
-            Semaine type la plus chargée {formatHours(peakWeek)} (foot compris), plus longue sortie prévue {formatHours(longest / 60)}.{' '}
+            Semaine la plus chargée {formatHours(peakWeek)} d’endurance (+ foot), plus longue sortie prévue {formatHours(longest / 60)}.{' '}
             {weeks.filter((w) => w.kind === 'light').length} semaines allégées, {weeks.filter((w) => w.kind === 'block').length} semaines bloc,{' '}
             {weeks.filter((w) => w.kind === 'travel').length} en voyage ({KIND_LABEL.travel}).
           </p>
         </>
       )}
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Volume de départ (h/sem., foot compris)">
+        <Field label="Endurance au départ (h/sem., hors foot)">
           <NumberInput value={settings.volume.startWeeklyHours} step={0.25} onChange={(v) => v && setVolume({ startWeeklyHours: v })} />
         </Field>
-        <Field label="Pic de volume (h/sem.)">
+        <Field label="Pic d’endurance (h/sem.)">
           <NumberInput value={settings.volume.peakWeeklyHours} step={0.25} onChange={(v) => v && setVolume({ peakWeeklyHours: v })} />
         </Field>
       </div>
@@ -92,7 +92,7 @@ export function AvailabilitySection() {
 
   return (
     <Section title="Disponibilités">
-      <p className="text-xs text-muted">Minutes disponibles par jour (le matin en semaine). Les changements s’appliquent au prochain recalcul du programme.</p>
+      <p className="text-xs text-muted">Minutes disponibles par jour (le matin en semaine). « Paris » = semaine type ; pour une semaine précise, touche les points en haut de la vue Semaine.</p>
       <div className="divide-y divide-line rounded-xl bg-raised">
         {DAYS.map((name, i) => {
           const wd = i + 1;
@@ -119,16 +119,26 @@ export function AvailabilitySection() {
           );
         })}
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Jour du foot">
-          <select className={inputCls} value={a.footballDay} onChange={(e) => save({ footballDay: Number(e.target.value) })}>
-            {DAYS.map((d, i) => (
-              <option key={d} value={i + 1}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </Field>
+      <Field label="Jours de foot (obligatoires sauf à Paris)" group>
+        <div className="grid grid-cols-7 gap-1">
+          {DAYS.map((d, i) => {
+            const wd = i + 1;
+            const on = a.footballDays.includes(wd);
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => save({ footballDays: on ? a.footballDays.filter((x) => x !== wd) : [...a.footballDays, wd].sort() })}
+                className={`h-10 rounded-lg text-sm ${on ? 'bg-ink text-bg font-semibold' : 'bg-raised text-muted'}`}
+                aria-pressed={on}
+              >
+                {d.slice(0, 3)}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
         <Field label="Durée foot (min)">
           <NumberInput value={a.footballMin} onChange={(v) => v && save({ footballMin: v })} />
         </Field>

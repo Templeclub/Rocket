@@ -163,9 +163,55 @@ describe('migration depuis la phase 0', () => {
     await ensureSeeded(upgraded);
     const s = await upgraded.settings.get('app');
     expect(s?.profile.ftp).toBe(190);
-    expect(s?.availability.footballDay).toBe(4);
-    expect(s?.volume.startWeeklyHours).toBe(4.5);
+    expect(s?.availability.footballDays).toEqual([1, 4]);
+    expect(s?.volume.startWeeklyHours).toBe(3);
     expect(await upgraded.sessions.get('s1')).toBeDefined();
     expect(await upgraded.weeks.count()).toBe(0);
+  });
+});
+
+import { applyReplanWeek, loadWeekEvaluation, previewReplanWeek, setConfirmed, setParisDays } from './program';
+
+describe('Paris, confirmation et replanification', () => {
+  it('séance générée = recommandée ; confirmer puis annuler', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    const s = (await d.sessions.where('date').equals('2026-11-14').first())!;
+    expect(s.confirmed).toBeFalsy();
+    const undo = await setConfirmed([s.id], true, d);
+    expect((await d.sessions.get(s.id))?.confirmed).toBe(true);
+    await undo();
+    expect((await d.sessions.get(s.id))?.confirmed).toBeFalsy();
+  });
+
+  it('reporter une séance la confirme', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    const s = (await d.sessions.where('date').equals('2026-11-14').first())!;
+    await postponeSession(s.id, '2026-11-15', '2026-11-09', d);
+    expect((await d.sessions.get(s.id))?.confirmed).toBe(true);
+  });
+
+  it('Paris jeudi-vendredi → signalements, replanification proposée puis appliquée, annulable', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    const W = '2026-11-16';
+    await setParisDays(W, ['2026-11-19', '2026-11-20'], d);
+    const ev = await loadWeekEvaluation(W, '2026-11-15', d);
+    expect(ev.issues.length).toBeGreaterThan(0);
+    const plan = await previewReplanWeek(W, '2026-11-15', d);
+    const undo = await applyReplanWeek(plan, d);
+    expect((await loadWeekEvaluation(W, '2026-11-15', d)).issues).toEqual([]);
+    const thu = await d.sessions.where('date').equals('2026-11-19').toArray();
+    expect(thu.every((s) => s.sport === 'run')).toBe(true);
+    await undo();
+    expect((await d.sessions.where('date').equals('2026-11-19').toArray()).some((s) => s.sport === 'football')).toBe(true);
+  });
+});
+
+describe('recalcul en milieu de semaine', () => {
+  it('ne touche pas aux jours passés de la semaine en cours', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    const monday = (await d.sessions.where('date').equals('2026-11-16').toArray()).map((s) => s.id);
+    await generateProgram({ fromWeek: '2026-11-16', today: '2026-11-18' }, d);
+    expect((await d.sessions.where('date').equals('2026-11-16').toArray()).map((s) => s.id)).toEqual(monday);
+    expect(await d.sessions.where('date').equals('2026-11-21').count()).toBe(1);
   });
 });

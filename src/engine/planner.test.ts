@@ -55,18 +55,27 @@ describe('macro-plan jusqu’au Desertus', () => {
     expect(plan.sessions.some((s) => s.date >= '2027-02-06' && s.date <= '2027-02-20' && s.sport !== 'run')).toBe(false);
   });
 
-  it('volume : départ ≤ 4h30 × 1,10, jamais au-dessus du pic hors semaine bloc', () => {
-    expect(plan.weeks[0].targetHours).toBeLessThanOrEqual(4.5 * 1.1 + 0.25);
+  it('volume d’endurance : départ ≤ 3h × 1,10, jamais au-dessus du pic hors semaine bloc', () => {
+    expect(plan.weeks[0].targetHours).toBeLessThanOrEqual(3 * 1.1);
     for (const w of plan.weeks) {
       if (w.kind !== 'block') expect(w.targetHours).toBeLessThanOrEqual(settings.volume.peakWeeklyHours);
     }
   });
 
-  it('les heures prévues collent à la cible (± 30 min), foot compris', () => {
+  it('les heures d’endurance prévues collent à la cible (± 30 min), le foot en plus', () => {
     for (const w of plan.weeks) {
       const sum = summarize(sessionsOf(w.weekStart), [], w.weekStart);
       if (w.weekStart === '2027-02-01') continue; // week-end à l’étranger
-      expect(Math.abs(sum.all.plannedH - w.targetHours)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(sum.endurance.plannedH - w.targetHours)).toBeLessThanOrEqual(0.5);
+    }
+  });
+
+  it('foot le lundi et le jeudi, sauf à Paris et en voyage ; rien d’autre ces jours-là', () => {
+    const w = sessionsOf('2026-11-16');
+    expect(w.filter((s) => s.sport === 'football').map((s) => s.date)).toEqual(['2026-11-16', '2026-11-19']);
+    for (const f of plan.sessions.filter((s) => s.sport === 'football')) {
+      expect(plan.sessions.filter((s) => s.date === f.date)).toHaveLength(1);
+      expect([1, 4]).toContain(isoWeekday(f.date));
     }
   });
 
@@ -154,9 +163,9 @@ describe('règles de construction des semaines', () => {
 
   it('régénération en cours de route : reprend le cycle et la progression', () => {
     const prior = plan.weeks.filter((w) => w.weekStart < '2027-01-11');
-    const re = macroPlan({ startWeek: '2027-01-11', goal, settings, history: { weeks: prior, rhythmHours: [5, 5, 5, 5] }, now: 0 });
+    const re = macroPlan({ startWeek: '2027-01-11', goal, settings, history: { weeks: prior, rhythmHours: [4, 4, 4, 4] }, now: 0 });
     expect(re[0].kind).toBe('load');
-    expect(re[0].targetHours).toBe(5.5);
+    expect(re[0].targetHours).toBe(4.25);
     expect(re.at(-1)!.kind).toBe('race');
   });
 });
@@ -175,9 +184,13 @@ const act = (date: string, hours: number, over: Partial<Activity> = {}): Activit
 
 describe('rythme réel (R1)', () => {
   const weeks: WeekPlan[] = plan.weeks;
-  it('sans données avant le plan : valeur de départ 4h30', () => {
-    const r = realRhythm({ before: '2026-11-09', activities: [], weeks, startHours: 4.5, planStart: '2026-11-09' });
-    expect(r.hours).toBe(4.5);
+  it('sans données avant le plan : valeur de départ (3h d’endurance)', () => {
+    const r = realRhythm({ before: '2026-11-09', activities: [], weeks, startHours: 3, planStart: '2026-11-09' });
+    expect(r.hours).toBe(3);
+  });
+  it('le foot ne compte pas dans le rythme d’endurance', () => {
+    const r = realRhythm({ before: '2026-11-16', activities: [act('2026-11-09', 1.5, { sport: 'football' }), act('2026-11-14', 2)], weeks, startHours: 3, planStart: '2026-11-09' });
+    expect(r.weeks[0].hours).toBe(2);
   });
   it('ignore les semaines allégées et prend les 4 dernières semaines normales', () => {
     const acts = [act('2026-11-10', 5), act('2026-11-17', 6), act('2026-11-24', 1), act('2026-12-01', 5), act('2026-12-08', 6)];
@@ -197,11 +210,11 @@ describe('bilan et recommandations', () => {
   const w2 = '2026-11-16';
 
   it('plafond = rythme réel × 1,10 ; au-dessus → alléger en sacrifiant d’abord les optionnelles', () => {
-    // Semaine 1 très peu faite : 2h au lieu de 5h
-    const acts = [act('2026-11-14', 2)];
+    // Semaine 1 très peu faite : 1h au lieu de 3h15
+    const acts = [act('2026-11-14', 1)];
     const sessions: PlannedSession[] = plan.sessions.map((s) => (s.date < w2 ? { ...s, status: s.date === '2026-11-14' ? 'done' : s.status } : s));
     const r = buildReview({ ...base, targetWeek: w2, today: '2026-11-15', sessions, activities: acts });
-    expect(r.cap).toBeCloseTo(((4.5 * 3 + 2) / 4) * 1.1);
+    expect(r.cap).toBeCloseTo(((3 * 3 + 1) / 4) * 1.1);
     const reduce = r.items.find((i) => i.type === 'reduce-volume')!;
     expect(reduce).toBeDefined();
     expect(reduce.justification).toMatchObject({ metric: 'volume prévu', unit: 'h' });
@@ -229,8 +242,8 @@ describe('bilan et recommandations', () => {
     expect(low.justification.unit).toBe('%');
   });
 
-  it('R7 : séance intense déplacée la veille du foot → signalée avec une proposition', () => {
-    const sessions = plan.sessions.map((s) => (s.date === '2026-11-16' && s.environment === 'indoor' ? { ...s, date: '2026-11-18' } : s));
+  it('R7 : séance intense le lendemain du foot → signalée avec une proposition', () => {
+    const sessions = plan.sessions.map((s) => (s.date === '2026-11-17' && s.sport === 'run' ? { ...s, rpe: 8 } : s));
     const r = buildReview({ ...base, targetWeek: w2, today: '2026-11-15', sessions, activities: [] });
     const item = r.items.find((i) => i.type === 'football-intensity');
     expect(item?.justification.value).toBe(1);

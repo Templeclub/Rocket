@@ -32,8 +32,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={show}>
       {children}
       {toast && (
-        <div className="fixed inset-x-0 bottom-20 z-50 px-3 pointer-events-none" role="status">
-          <div className="pointer-events-auto mx-auto max-w-xl flex items-center gap-3 rounded-xl bg-ink text-bg px-4 py-3 shadow-xl">
+        <div className="fixed inset-x-0 bottom-36 z-50 px-3 pointer-events-none" role="status">
+          <div className="pointer-events-auto mx-auto max-w-xl flex items-center gap-3 rounded-2xl bg-ink text-bg px-4 py-3 shadow-xl">
             <span className="flex-1 text-sm">{toast.message}</span>
             {toast.actions.map((a) => (
               <button

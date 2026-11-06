@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '../db/db';
 import * as A from '../db/actions';
+import { setConfirmed, switchVariant } from '../db/program';
 import { labelDay, todayLocal } from '../engine/dates';
 import type { AppSettings, LocalDate } from '../engine/types';
 import { withDefaults } from '../engine/zones';
@@ -15,7 +16,9 @@ export type Overlay =
   | { kind: 'activity'; id?: string; sessionId?: string; date?: LocalDate }
   | { kind: 'postpone'; id: string }
   | { kind: 'swap'; id: string }
-  | { kind: 'review'; weekStart: LocalDate };
+  | { kind: 'review'; weekStart: LocalDate }
+  | { kind: 'actions'; id: string }
+  | { kind: 'replan'; weekStart: LocalDate };
 
 export interface Nav {
   open: (o: Overlay) => void;
@@ -104,6 +107,16 @@ export function useSessionActions() {
           label: 'Modifier',
           run: () => nav.open({ kind: 'session', id: session.id }),
         });
+      }),
+    setConfirmed: (ids: string[], value: boolean) =>
+      guard(async () => {
+        const undo = await setConfirmed(ids, value);
+        toast(value ? (ids.length > 1 ? `${ids.length} séances confirmées` : 'Séance confirmée') : 'Repassée en recommandée', undoAction(undo));
+      }),
+    switchVariant: (id: string, title: string) =>
+      guard(async () => {
+        const undo = await switchVariant(id);
+        toast(`Basculée : ${title}`, undoAction(undo));
       }),
     removeActivity: (id: string) =>
       guard(async () => {

@@ -29,6 +29,7 @@ import {
   run,
   swim,
   trainerVariant,
+  type RideEfforts,
   type RunKind,
 } from './workouts';
 
@@ -68,6 +69,41 @@ export function phaseOf(weekStart: LocalDate, raceWeek: LocalDate): Phase {
 export function dayException(date: LocalDate, a: Availability): ExceptionKind | null {
   const e = a.exceptions.find((x) => x.start <= date && date <= x.end);
   return e ? e.kind : null;
+}
+
+/** Jours à Paris d'une semaine : saisis dans la vue semaine, sinon ceux de la semaine type (hors congés et voyages). */
+export function parisDaysOf(weekStart: LocalDate, a: Availability): LocalDate[] {
+  const explicit = a.parisByWeek?.[weekStart];
+  if (explicit) return [...explicit].sort();
+  return weekDays(weekStart).filter((d) => a.template[isoWeekday(d)]?.paris && dayException(d, a) === null);
+}
+
+/** Jours de foot d'une semaine : lundi et jeudi, sauf à Paris, en voyage ou indisponible. */
+export function footballDaysOf(weekStart: LocalDate, a: Availability): LocalDate[] {
+  const paris = new Set(parisDaysOf(weekStart, a));
+  return weekDays(weekStart).filter((d) => {
+    const exc = dayException(d, a);
+    return a.footballDays.includes(isoWeekday(d)) && !paris.has(d) && exc !== 'runOnly' && exc !== 'unavailable';
+  });
+}
+
+/**
+ * Présence à Paris après un tap sur le point d'un jour :
+ * - jour déjà à Paris → retiré (présence plus courte) ;
+ * - jour collé à la présence existante → ajouté (présence plus longue) ;
+ * - sinon → nouvelle présence de N jours (2 par défaut) à partir de ce jour, dans la semaine.
+ */
+export function toggleParisDay(current: LocalDate[], day: LocalDate, weekStart: LocalDate, length: number = CONFIG.availability.parisDefaultLength): LocalDate[] {
+  const set = new Set(current);
+  if (set.has(day)) {
+    set.delete(day);
+    return [...set].sort();
+  }
+  const adjacent = current.some((d) => Math.abs(diffDays(d, day)) === 1);
+  if (adjacent) return [...current, day].sort();
+  const end = addDays(weekStart, 6);
+  const next = Array.from({ length }, (_, i) => addDays(day, i)).filter((d) => d <= end);
+  return next;
 }
 
 function countDays(weekStart: LocalDate, a: Availability, pred: (k: ExceptionKind | null, wd: number) => boolean): number {
@@ -168,7 +204,7 @@ export function macroPlan(input: PlanInput): WeekPlan[] {
         break;
       case 'race':
         target = lastLoad * P.raceWeekFactor;
-        notes.push('Semaine de l’objectif : pas de foot, déblocage léger, repos.');
+        notes.push('Semaine de l’objectif : déblocage léger, repos ; foot à J-2 déconseillé.');
         break;
     }
     // Charge et bloc : arrondi au quart d'heure inférieur pour rester sous le plafond (R3).
@@ -198,6 +234,10 @@ interface Day {
 
 interface BuildCtx {
   settings: AppSettings;
+  /** Jours déjà occupés (séances faites ou gardées, jours passés) : rien n'y est ajouté. */
+  occupied?: Set<LocalDate>;
+  /** Minutes d'endurance déjà couvertes par les séances gardées. */
+  keptMin?: number;
   goal: Goal;
   /** Plus longue sortie prévue ou faite jusqu'ici (minutes). */
   longest: number;
@@ -229,26 +269,37 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
   const a = ctx.settings.availability;
   const now = ctx.now;
   const startMin = parseClock(a.weekdayMorningStart);
+  const paris = new Set(parisDaysOf(week.weekStart, a));
   const days: Day[] = weekDays(week.weekStart).map((date) => {
     const wd = isoWeekday(date);
     const t = a.template[wd] ?? { minutes: 0, paris: false };
     const exc = dayException(date, a);
-    return { date, wd, exc, minutes: exc === 'leave' ? P.weekendMaxMin : t.minutes, paris: exc === null && t.paris };
+    const inParis = paris.has(date) && exc !== 'runOnly' && exc !== 'unavailable';
+    // À Paris : course uniquement, avec le temps du matin (au moins 40 min).
+    const minutes = inParis ? Math.max(40, t.paris ? t.minutes : 40) : exc === 'leave' ? P.weekendMaxMin : t.minutes;
+    return { date, wd, exc, minutes, paris: inParis };
   });
   const out: PlannedSession[] = [];
   const add = (c: SessionContent, d: Day, alt?: SessionContent) => out.push(session(c, d.date, now, alt));
-  const used = new Set<LocalDate>();
+  const used = new Set<LocalDate>(ctx.occupied ?? []);
   const take = (d: Day | undefined) => (d ? (used.add(d.date), d) : undefined);
   const phase = week.phase;
 
-  // Football : jour habituel, sauf voyage, congé ou semaine de l'objectif.
-  const footDay = days.find((d) => d.wd === a.footballDay);
-  const withFootball = !!footDay && footDay.exc === null && week.kind !== 'travel' && week.kind !== 'race';
-  if (withFootball) {
-    add(football(a.footballMin), footDay);
-    take(footDay);
+  // Football : lundi et jeudi, obligatoires sauf à Paris ou en voyage, prioritaires ce jour-là.
+  // La semaine de l'objectif, le foot à J-2 est proposé en optionnel (risque de blessure).
+  const footDays = week.kind === 'travel' ? [] : footballDaysOf(week.weekStart, a);
+  const footWds: number[] = [];
+  for (const fd of footDays) {
+    const d = days.find((x) => x.date === fd)!;
+    footWds.push(d.wd);
+    if (used.has(d.date)) continue;
+    const c = football(a.footballMin);
+    if (week.kind === 'race' && diffDays(ctx.goal.date, d.date) <= 3) {
+      c.notes = 'À quelques jours du départ : je te conseille de t’abstenir (risque de blessure).';
+    }
+    add(c, take(d)!);
   }
-  let budget = Math.round(week.targetHours * 60) - (withFootball ? a.footballMin : 0);
+  let budget = Math.round(week.targetHours * 60) - (ctx.keptMin ?? 0);
 
   // Voyage : course uniquement.
   if (week.kind === 'travel') {
@@ -262,11 +313,10 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
   }
 
   // Séance structurée : premier matin libre, pas la veille ni le lendemain du foot (R7).
-  const footWd = withFootball ? a.footballDay : null;
   const morning = (d: Day) => !used.has(d.date) && d.wd <= 5 && (d.exc === null || d.exc === 'leave') && !d.paris && d.minutes >= 45;
   /** Extérieur possible : congé (en journée) ou séance du matin entièrement de jour (R8). */
   const daylightOk = (d: Day, m: number) => d.exc === 'leave' || fitsInDaylight(d.date, startMin, m);
-  const notNearFootball = (d: Day) => footWd === null || Math.abs(d.wd - footWd) > R.footballBufferDays;
+  const notNearFootball = (d: Day) => footWds.every((f) => Math.abs(d.wd - f) > R.footballBufferDays);
   const intenseDay = take(days.find((d) => morning(d) && notNearFootball(d)));
 
   if (week.kind === 'race') {
@@ -283,6 +333,8 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
   const taper = week.kind === 'taper';
   const block = week.kind === 'block';
   const keyMin = Math.min(P.keyWeekdayMin, intenseDay?.minutes ?? 0);
+  // Aucun matin compatible avec le foot : la séance structurée est intégrée à la sortie du samedi.
+  const effortsInRide = !intenseDay && !light;
   if (intenseDay) {
     if (light) add(htEndurance(45), intenseDay);
     else {
@@ -295,7 +347,7 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
   }
 
   // Footing du jour à Paris (avec variante natation).
-  const parisDay = take(days.find((d) => !used.has(d.date) && d.paris && d.minutes >= 20));
+  const parisDay = take(days.find((d) => !used.has(d.date) && d.paris && d.minutes >= 20 && d.wd <= 5));
   let runMin = 0;
   if (parisDay) {
     runMin = Math.min(parisDay.minutes, phase === 'base' || light || taper ? P.parisRunMin[0] : P.parisRunMin[1]);
@@ -384,7 +436,10 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
     }
     s1 = roundTo(s1);
     s2 = s2 >= 45 && sun ? Math.min(roundTo(s2), s1) : 0;
-    if (s1 >= 30) rides.push({ day: sat, min: s1, opts: { loaded: specialIdx === 0 && phase === 'specific' } });
+    if (s1 >= 30) {
+      const efforts = effortsInRide && s1 >= 75 ? rideEfforts(phase, taper, ctx.intenseCount[phase]++) : undefined;
+      rides.push({ day: sat, min: s1, opts: { loaded: specialIdx === 0 && phase === 'specific', efforts } });
+    }
     if (s2 && sun) rides.push({ day: sun, min: s2, opts: { priority: 'optional', title: 'Endurance Z2 extérieur' } });
   }
 
@@ -407,9 +462,30 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
   return finish(out, week);
 }
 
+/** Efforts structurés intégrés à une sortie extérieure (cibles en zone de FC et RPE). */
+function rideEfforts(phase: Phase, taper: boolean, index: number): RideEfforts {
+  if (taper) return { label: 'Accélérations', n: 3, each: 3, rec: 3, hrZone: 4, rpe: 7 };
+  const list: Record<Phase, RideEfforts[]> = {
+    base: [
+      { label: 'Tempo', n: 2, each: 15, rec: 5, hrZone: 3, rpe: 6 },
+      { label: 'Tempo', n: 2, each: 20, rec: 5, hrZone: 3, rpe: 6 },
+    ],
+    development: [
+      { label: 'Sweet spot', n: 3, each: 12, rec: 5, hrZone: 4, rpe: 7 },
+      { label: 'Seuil', n: 4, each: 6, rec: 4, hrZone: 4, rpe: 8 },
+      { label: 'Sweet spot', n: 2, each: 20, rec: 5, hrZone: 4, rpe: 7 },
+    ],
+    specific: [{ label: 'Tempo', n: 2, each: 20, rec: 5, hrZone: 3, rpe: 6 }],
+    taper: [{ label: 'Accélérations', n: 3, each: 3, rec: 3, hrZone: 4, rpe: 7 }],
+  };
+  const l = list[phase];
+  return l[index % l.length];
+}
+
 function finish(sessions: PlannedSession[], week: WeekPlan): PlannedSession[] {
   if (week.kind === 'race' || week.kind === 'travel') {
-    week.targetHours = Math.round((sessions.reduce((s, x) => s + x.targetDurationMin, 0) / 60) * 4) / 4;
+    const endurance = sessions.filter((x) => x.sport !== 'football' && x.sport !== 'enduro');
+    week.targetHours = Math.round((endurance.reduce((s, x) => s + x.targetDurationMin, 0) / 60) * 4) / 4;
   }
   week.longRideMin = Math.max(0, ...sessions.filter((s) => s.sport === 'gravel').map((s) => s.targetDurationMin));
   return sessions.sort((x, y) => x.date.localeCompare(y.date));

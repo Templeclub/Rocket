@@ -6,7 +6,8 @@ import { newId } from '../engine/library';
 import { defaultStartWeek, generatePlan } from '../engine/planner';
 import { buildReview, realRhythm, type ReviewAction, type ReviewItem, type WeekReview } from '../engine/review';
 import { isPending } from '../engine/status';
-import type { Goal, LocalDate, Recommendation } from '../engine/types';
+import { programProgress, rebuildWeek, weekIssues, type Issue, type Progress } from '../engine/evaluate';
+import type { Goal, LocalDate, PlannedSession, Recommendation, WeekPlan } from '../engine/types';
 import { switchToAlternative } from '../engine/workouts';
 import type { Undo } from './actions';
 import { db, getSettings, type AsceseDB } from './db';
@@ -59,16 +60,19 @@ export async function generateProgram(
   });
 
   let removedManual = 0;
+  // Les jours déjà passés de la semaine de départ ne sont pas touchés.
+  const from = opts.today > fromWeek ? opts.today : fromWeek;
+  const newSessions = out.sessions.filter((s) => s.date >= from);
   await d.transaction('rw', d.sessions, d.weeks, async () => {
-    const future = await d.sessions.where('date').aboveOrEqual(fromWeek).toArray();
+    const future = await d.sessions.where('date').aboveOrEqual(from).toArray();
     const toDelete = future.filter((s) => (s.origin === 'generated' && s.status !== 'done') || (opts.removeManual && s.origin === 'manual' && isPending(s)));
     removedManual = toDelete.filter((s) => s.origin === 'manual').length;
     await d.sessions.bulkDelete(toDelete.map((s) => s.id));
     await d.weeks.where('weekStart').aboveOrEqual(fromWeek).delete();
     await d.weeks.bulkPut(out.weeks);
-    await d.sessions.bulkAdd(out.sessions);
+    await d.sessions.bulkAdd(newSessions);
   });
-  return { weeks: out.weeks.length, sessions: out.sessions.length, removedManual };
+  return { weeks: out.weeks.length, sessions: newSessions.length, removedManual };
 }
 
 export async function countManualFrom(fromWeek: LocalDate, d: AsceseDB = db): Promise<number> {
@@ -144,10 +148,13 @@ export async function confirmWeek(weekStart: LocalDate, decisions: Decision[], d
     choice: choiceIndex === null ? undefined : item.choices[choiceIndex]?.label,
     decidedAt: now,
   }));
-  await d.transaction('rw', d.weeks, d.recommendations, async () => {
+  await d.transaction('rw', d.weeks, d.recommendations, d.sessions, async () => {
     await d.recommendations.bulkPut(recs);
     const w = await d.weeks.get(weekStart);
     if (w) await d.weeks.put({ ...w, confirmedAt: now });
+    // Confirmer la semaine confirme toutes ses séances encore en attente.
+    const list = await d.sessions.where('date').between(weekStart, addDays(weekStart, 7), true, false).toArray();
+    await d.sessions.bulkPut(list.filter((x) => isPending(x) && !x.confirmed).map((x) => ({ ...x, confirmed: true, updatedAt: now })));
   });
 }
 
@@ -162,4 +169,85 @@ export async function switchVariant(sessionId: string, d: AsceseDB = db): Promis
   if (!s?.alternative) throw new Error('Pas de variante pour cette séance.');
   await d.sessions.put({ ...switchToAlternative(s), updatedAt: Date.now() });
   return async () => void (await d.sessions.put(s));
+}
+
+// --- Confirmation des séances, présence à Paris, évaluation et replanification d'une semaine ---
+
+/** Passe des séances de « recommandée » à « confirmée » (ou l'inverse). */
+export async function setConfirmed(ids: string[], confirmed: boolean, d: AsceseDB = db): Promise<Undo> {
+  const before = (await d.sessions.bulkGet(ids)).filter((x): x is NonNullable<typeof x> => !!x);
+  const now = Date.now();
+  await d.sessions.bulkPut(before.map((x) => ({ ...x, confirmed, updatedAt: now })));
+  return async () => void (await d.sessions.bulkPut(before));
+}
+
+/** Enregistre les jours à Paris d'une semaine (remplace ceux de la semaine type pour cette semaine). */
+export async function setParisDays(weekStart: LocalDate, days: LocalDate[], d: AsceseDB = db): Promise<Undo> {
+  const settings = await getSettings(d);
+  const before = settings.availability.parisByWeek[weekStart];
+  const write = async (value: LocalDate[] | undefined) => {
+    const s = await getSettings(d);
+    const parisByWeek = { ...s.availability.parisByWeek };
+    if (value === undefined) delete parisByWeek[weekStart];
+    else parisByWeek[weekStart] = value;
+    await d.settings.put({ ...s, availability: { ...s.availability, parisByWeek } });
+  };
+  await write(days);
+  return () => write(before);
+}
+
+export interface WeekEvaluation {
+  plan?: WeekPlan;
+  issues: Issue[];
+  progress: Progress;
+}
+
+export async function loadWeekEvaluation(weekStart: LocalDate, today: LocalDate, d: AsceseDB = db): Promise<WeekEvaluation> {
+  const [settings, weeks, sessions, activities] = await Promise.all([
+    getSettings(d),
+    d.weeks.toArray(),
+    d.sessions.where('date').between(addDays(weekStart, -1), addDays(weekStart, 8), true, false).toArray(),
+    d.activities.where('date').between(addDays(weekStart, -7 * 9), weekStart, true, false).toArray(),
+  ]);
+  const plan = weeks.find((w) => w.weekStart === weekStart);
+  return {
+    plan,
+    issues: weekIssues({ weekStart, sessions, settings, today, plan }),
+    progress: programProgress({ weekStart, today, weeks, activities, settings }),
+  };
+}
+
+/** Proposition de replanification de la semaine (rien n'est écrit). */
+export async function previewReplanWeek(weekStart: LocalDate, today: LocalDate, d: AsceseDB = db) {
+  const [settings, goal, weeks, sessions] = await Promise.all([
+    getSettings(d),
+    mainGoal(d),
+    d.weeks.toArray(),
+    d.sessions.where('date').between(weekStart, addDays(weekStart, 7), true, false).toArray(),
+  ]);
+  const week = weeks.find((w) => w.weekStart === weekStart);
+  if (!week) throw new Error('Cette semaine ne fait pas partie du programme.');
+  const fromDate = today > weekStart ? today : weekStart;
+  return rebuildWeek({ week, weeks, sessions, settings, goal, fromDate });
+}
+
+/** Applique la replanification proposée ; renvoie l'annulation. */
+export async function applyReplanWeek(plan: { add: PlannedSession[]; remove: PlannedSession[] }, d: AsceseDB = db): Promise<Undo> {
+  await d.transaction('rw', d.sessions, async () => {
+    await d.sessions.bulkDelete(plan.remove.map((s) => s.id));
+    await d.sessions.bulkAdd(plan.add);
+  });
+  return async () => {
+    await d.transaction('rw', d.sessions, async () => {
+      await d.sessions.bulkDelete(plan.add.map((s) => s.id));
+      await d.sessions.bulkPut(plan.remove);
+    });
+  };
+}
+
+/** Relève le pic de volume puis recalcule le programme (en avance sur le plan). */
+export async function raisePeakAndReplan(peak: number, fromWeek: LocalDate, today: LocalDate, d: AsceseDB = db): Promise<GenerateResult> {
+  const s = await getSettings(d);
+  await d.settings.put({ ...s, volume: { ...s.volume, peakWeeklyHours: peak } });
+  return generateProgram({ fromWeek, today }, d);
 }
