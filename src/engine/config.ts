@@ -24,12 +24,15 @@ export const CONFIG = {
   hrZoneNames: ['Très facile', 'Facile', 'Modéré', 'Difficile', 'Maximal'],
 
   /**
-   * Point de départ du rythme réel, en heures TOTALES par semaine (foot compris : réponse « oui » à la question 3).
-   * Le pic n'est relevé que si le rythme réel le permet (recommandation hebdomadaire).
+   * Point de départ du rythme réel, en heures d'ENDURANCE par semaine (vélo, course, natation).
+   * Mes 4h30 (pic 7h) incluaient un foot de 1h30 : 3h et 5h30 d'endurance. Le foot (lundi et jeudi) s'ajoute.
+   * Le pic n'est relevé que si le rythme réel le permet.
    */
   startVolume: {
-    weeklyHours: 4.5,
-    peakWeeklyHours: 7,
+    weeklyHours: 3,
+    peakWeeklyHours: 5.5,
+    /** Foot inclus dans les anciennes valeurs (heures totales), retiré à la migration. */
+    legacyFootballHours: 1.5,
     /** Plus longue sortie récente supposée, en minutes. */
     longestRideMin: 120,
   },
@@ -101,6 +104,16 @@ export const CONFIG = {
     behindWeeks: 2,
   },
 
+  /** Suivi du programme (évaluation en haut de chaque semaine). */
+  progress: {
+    /** Semaines terminées prises en compte. */
+    weeks: 4,
+    /** Réalisé / prévu sous ce ratio : en retard. */
+    behindRatio: 0.85,
+    /** Réalisé / prévu au-dessus de ce ratio : en avance. */
+    aheadRatio: 1.1,
+  },
+
   /** Macro-phases par défaut (R10). */
   phases: {
     /** Base jusqu'à cette date incluse (semaines qui commencent avant). */
@@ -165,8 +178,11 @@ export const CONFIG = {
       7: { minutes: 360, paris: false },
     },
     weekdayMorningStart: '07:30',
-    footballDay: 4,
+    /** Lundi et jeudi : obligatoires sauf à Paris, prioritaires sur les autres séances. */
+    footballDays: [1, 4],
     footballMin: 90,
+    /** Présence à Paris posée depuis la vue semaine : nombre de jours par défaut. */
+    parisDefaultLength: 2,
     exceptions: [
       { id: 'exc:noel-2026', start: '2026-12-24', end: '2027-01-01', kind: 'leave', label: 'Congés de Noël' },
       { id: 'exc:etranger-fev-2027', start: '2027-02-06', end: '2027-02-20', kind: 'runOnly', label: 'Étranger (course uniquement)' },

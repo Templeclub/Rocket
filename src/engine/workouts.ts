@@ -185,7 +185,19 @@ export function outdoorEndurance(minutes: number, phase: Phase, priority: 'key' 
   });
 }
 
+/** Efforts structurés intégrés à une sortie extérieure. */
+export interface RideEfforts {
+  label: string;
+  n: number;
+  each: number;
+  rec: number;
+  hrZone: number;
+  rpe: number;
+}
+
 export interface LongRideOptions {
+  /** Séance structurée intégrée (quand aucun matin de semaine n'est compatible avec le foot). */
+  efforts?: RideEfforts;
   title?: string;
   loaded?: boolean;
   /** Coucher du soleil (minutes depuis minuit) : la sortie finit 1 h après. */
@@ -203,7 +215,19 @@ export function longRide(minutes: number, phase: Phase, opts: LongRideOptions = 
   const body = minutes - warm - cool;
   const fuel = 'manger toutes les 45\', boire toutes les 15\'';
   let blocks: Block[];
-  if (phase === 'development' && minutes >= 150) {
+  const e = opts.efforts;
+  if (e && body >= repsMin(e.n, e.each, e.rec) + 30) {
+    const main = repsMin(e.n, e.each, e.rec);
+    const z2 = body - main;
+    const before = Math.round(z2 / 3);
+    blocks = [
+      blk('Mise en route', warm, { hrZone: 1, rpe: 2 }),
+      blk('Endurance', before, { hrZone: 2, rpe: 3, text: fuel }),
+      reps(e.label, e.n, e.each, e.rec, { hrZone: e.hrZone, rpe: e.rpe, text: 'récup en Z1-Z2' }),
+      blk('Endurance', z2 - before, { hrZone: 2, rpe: 3 }),
+      blk('Retour', cool, { hrZone: 1, rpe: 2 }),
+    ];
+  } else if (phase === 'development' && minutes >= 150) {
     const tempo = repsMin(2, 15, 10);
     const z2 = body - tempo;
     blocks = [
@@ -233,8 +257,9 @@ export function longRide(minutes: number, phase: Phase, opts: LongRideOptions = 
     );
   }
   if (opts.note) notes.push(opts.note);
+  if (e) notes.push(`Séance structurée intégrée (${e.n} × ${e.each}' ${e.label.toLowerCase()}) : aucun matin de semaine n’est compatible avec le foot du lundi et du jeudi.`);
   return content({
-    title: opts.title ?? (loaded ? 'Sortie longue chargée' : 'Sortie longue'),
+    title: opts.title ?? (loaded ? 'Sortie longue chargée' : e ? `Sortie longue + ${e.label.toLowerCase()} ${e.n} × ${e.each}'` : 'Sortie longue'),
     sport: 'gravel',
     type: 'sortie longue',
     environment: 'outdoor',

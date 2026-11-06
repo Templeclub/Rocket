@@ -48,8 +48,9 @@ export function defaultAvailability(): Availability {
   const a = CONFIG.availability;
   return {
     template: Object.fromEntries(Object.entries(a.template).map(([k, v]) => [Number(k), { ...v }])),
-    footballDay: a.footballDay,
+    footballDays: [...a.footballDays],
     footballMin: a.footballMin,
+    parisByWeek: {},
     weekdayMorningStart: a.weekdayMorningStart,
     exceptions: a.exceptions.map((e) => ({ ...e })),
   };
@@ -60,7 +61,7 @@ export function defaultSettings(): AppSettings {
     id: 'app',
     profile: { ...CONFIG.profile },
     availability: defaultAvailability(),
-    volume: { startWeeklyHours: CONFIG.startVolume.weeklyHours, peakWeeklyHours: CONFIG.startVolume.peakWeeklyHours },
+    volume: { startWeeklyHours: CONFIG.startVolume.weeklyHours, peakWeeklyHours: CONFIG.startVolume.peakWeeklyHours, basis: 'endurance' },
     powerZoneUpperPct: [...CONFIG.powerZoneUpperPct],
     hrZoneBoundsPct: [...CONFIG.hrZoneBoundsPct],
   };
@@ -70,14 +71,23 @@ export function defaultSettings(): AppSettings {
 export function withDefaults(s: Partial<AppSettings> | undefined): AppSettings {
   const d = defaultSettings();
   if (!s) return d;
-  return {
-    ...d,
-    ...s,
-    id: 'app',
-    profile: { ...d.profile, ...s.profile },
-    availability: s.availability ? { ...d.availability, ...s.availability } : d.availability,
-    volume: { ...d.volume, ...s.volume },
-  };
+  const legacy = s.availability as (Partial<Availability> & { footballDay?: number }) | undefined;
+  const availability: Availability = legacy ? { ...d.availability, ...legacy } : d.availability;
+  // Ancienne version : un seul jour de foot → lundi et jeudi désormais.
+  if (!Array.isArray(availability.footballDays)) availability.footballDays = [...d.availability.footballDays];
+  delete (availability as { footballDay?: number }).footballDay;
+  availability.parisByWeek = availability.parisByWeek ?? {};
+  // Ancienne version : volume en heures totales (foot compris) → heures d'endurance.
+  let volume = { ...d.volume, ...s.volume };
+  if (s.volume && s.volume.basis !== 'endurance') {
+    const f = CONFIG.startVolume.legacyFootballHours;
+    volume = {
+      startWeeklyHours: Math.max(1, s.volume.startWeeklyHours - f),
+      peakWeeklyHours: Math.max(1.5, s.volume.peakWeeklyHours - f),
+      basis: 'endurance',
+    };
+  }
+  return { ...d, ...s, id: 'app', profile: { ...d.profile, ...s.profile }, availability, volume };
 }
 
 // --- Durées ---

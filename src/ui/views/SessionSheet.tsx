@@ -12,6 +12,7 @@ import type { Activity, PlannedSession, SessionTemplate } from '../../engine/typ
 import { formatDuration } from '../../engine/zones';
 import { ContentForm, ContentView } from '../components/ContentForm';
 import { DurationInput, Field, inputCls, NumberInput, RpeSelect, SportPicker } from '../components/Form';
+import { IconMore } from '../components/Icons';
 import { Sheet } from '../components/Sheet';
 import { useToast } from '../components/Toast';
 import { useNav, useSessionActions, useSettings } from '../hooks';
@@ -99,8 +100,8 @@ export function SessionSheet({ id }: { id: string }) {
               <button className={primary} onClick={() => (nav.close(), act.done(id))}>
                 Fait comme prévu
               </button>
-              <button className={secondary} onClick={() => nav.open({ kind: 'postpone', id })}>
-                Reporter
+              <button className={secondary} aria-label="Toutes les actions" onClick={() => nav.open({ kind: 'actions', id })}>
+                <IconMore />
               </button>
             </>
           )}
@@ -126,6 +127,16 @@ export function SessionSheet({ id }: { id: string }) {
           <span className="text-muted"> · {meta.label} · {displayStatus(session, act.today)}</span>
           {session.originalDate && <span className="text-warn"> · prévue d’abord le {labelShort(session.originalDate)}</span>}
         </div>
+        {pending && (
+          <button
+            onClick={() => act.setConfirmed([id], !session.confirmed)}
+            className={`h-9 px-3 rounded-full text-sm flex items-center gap-2 ${
+              session.confirmed ? 'bg-ok/15 text-ok font-medium' : 'border border-dashed border-muted/60 text-muted'
+            }`}
+          >
+            {session.confirmed ? '✓ Confirmée · repasser en recommandée' : <>Recommandée par le programme · <span className="text-accent font-medium">Confirmer</span></>}
+          </button>
+        )}
 
         {session.alternative && pending && (
           <button
@@ -160,19 +171,9 @@ export function SessionSheet({ id }: { id: string }) {
           {activity ? <ActivitySummary a={activity} /> : <p className="text-sm text-muted mt-1">Rien de saisi.</p>}
         </section>
 
-        <div className="flex flex-wrap gap-2 text-sm">
-          {pending && (
-            <>
-              <button className={secondary} onClick={() => nav.open({ kind: 'swap', id })}>
-                Échanger
-              </button>
-              <button className={secondary} onClick={() => (nav.close(), act.cancel(id))}>
-                Annuler la séance
-              </button>
-            </>
-          )}
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm pt-1">
           <button
-            className={secondary}
+            className="text-accent"
             onClick={async () => {
               const t = await A.saveAsTemplate(session);
               toast(`« ${t.title} » ajoutée à la bibliothèque`);
@@ -180,7 +181,7 @@ export function SessionSheet({ id }: { id: string }) {
           >
             Enregistrer comme séance type
           </button>
-          <button className={`${secondary} text-danger`} onClick={() => (nav.close(), act.remove(id))}>
+          <button className="text-danger" onClick={() => (nav.close(), act.remove(id))}>
             Supprimer
           </button>
         </div>

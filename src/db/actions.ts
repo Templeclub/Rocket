@@ -66,7 +66,8 @@ export async function deleteSession(id: string, d: DesertusDB = db): Promise<Und
 
 export async function postponeSession(id: string, date: LocalDate, today: LocalDate, d: DesertusDB = db): Promise<Undo> {
   const s = await getSession(id, d);
-  const next = postpone(s, date, today);
+  // Déplacer une séance, c'est la choisir : elle devient confirmée.
+  const next = { ...postpone(s, date, today), confirmed: true };
   const undo = await snapshot(d, [id], []);
   await d.sessions.put(next);
   return undo;
@@ -74,7 +75,7 @@ export async function postponeSession(id: string, date: LocalDate, today: LocalD
 
 export async function swapSessions(aId: string, bId: string, today: LocalDate, d: DesertusDB = db): Promise<Undo> {
   const [a, b] = await Promise.all([getSession(aId, d), getSession(bId, d)]);
-  const [na, nb] = swap(a, b, today);
+  const [na, nb] = swap(a, b, today).map((x) => ({ ...x, confirmed: true }));
   const undo = await snapshot(d, [aId, bId], []);
   await d.sessions.bulkPut([na, nb]);
   return undo;

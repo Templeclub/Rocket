@@ -5,7 +5,7 @@
 PWA personnelle de planification d’entraînement vers le **Desertus Bikus** (10 avril 2027, 1 300 km, 13 000 m D+, 7 jours max).
 Mobile Android, une main, en français, données locales uniquement, fuseau Europe/Paris.
 
-**État : phase 1 (programme et confirmation hebdomadaire) livrée sur la branche `phase-1`, en attente de validation.** La phase 0 est sur `main`.
+**État : phase 1 sur `main`. Évolution « interface, Paris et suivi du programme » sur la branche `ux-paris-suivi`, en attente de validation.**
 
 ## Utilisation
 
@@ -25,14 +25,36 @@ Aucune proposition n’est appliquée sans ton accord, et chaque choix accepté 
 
 ### Gestes rapides
 
+Chaque carte n’a qu’un bouton « ⋯ » : il ouvre un panneau avec toutes les actions, les jours de report et les séances à échanger.
+
 | Je veux… | Comment | Taps |
 |---|---|---|
 | Créer une séance | « + » sur le jour → séance type | 2 |
-| Reporter | « Reporter » → jour | 2 |
-| Échanger | ⇄ → l’autre séance | 2 |
-| Annuler | ✕ (bandeau « Annuler » 5 s) | 1 |
-| Fait comme prévu | « Fait » | 1 |
-| Basculer HT ↔ extérieur, course ↔ natation | Fiche séance → « Basculer sur la variante » | 2 |
+| Reporter | « ⋯ » → jour | 2 |
+| Échanger | « ⋯ » → l’autre séance | 2 |
+| Annuler | « ⋯ » → Annuler (bandeau « Annuler » 5 s) | 2 |
+| Fait comme prévu | « ⋯ » → Fait | 2 |
+| Confirmer une séance recommandée | pastille « Recommandée · Confirmer » | 1 |
+| Tout confirmer pour la semaine | carte de la semaine → « Tout confirmer » | 1 |
+| Basculer HT ↔ extérieur, course ↔ natation | « ⋯ » → variante | 2 |
+
+### Recommandée ou confirmée
+Les séances proposées par le programme sont **recommandées** : bord pointillé, fond transparent, pastille « Recommandée · Confirmer ». Une fois **confirmées** (pastille, « Tout confirmer », bilan de la semaine, ou dès que tu reportes ou échanges la séance), elles deviennent des cartes pleines. Les séances ajoutées à la main sont confirmées d’office.
+
+### Jours à Paris et foot
+En haut de la vue Semaine, un point sous chaque jour :
+- **tap sur un jour libre** → présence à Paris de 2 jours à partir de ce jour ;
+- **tap sur un jour voisin** → la présence s’allonge d’un jour ;
+- **tap sur un jour « P »** → ce jour est retiré (présence plus courte).
+
+Le **foot est obligatoire le lundi et le jeudi, sauf à Paris**, et prioritaire : rien d’autre n’est prévu ces jours-là. À Paris, course uniquement. Avec Paris mardi-mercredi (foot lundi et jeudi), aucun matin de semaine n’est compatible avec la règle R7 pour la séance structurée : elle est **intégrée à la sortie du samedi** (efforts en zone de FC).
+
+### Évaluation de la semaine (retard, avance, ajustements)
+En haut de chaque semaine en cours ou à venir :
+- **suivi du programme** : heures d’endurance faites / prévues sur les 4 dernières semaines terminées → *En retard* (< 85 %), *Dans le plan*, *En avance* (> 110 %), avec le rythme réel et ce qu’il permet cette semaine ;
+  - en retard → « Recalculer le programme » (repart du rythme réel, sans forcer) ;
+  - en avance → « Recalculer » ou « Relever le pic à … et recalculer » si ton rythme dépasse le pic ;
+- **ce qui ne colle plus** (séance un jour à Paris, autre chose qu’un foot un lundi ou jeudi, foot manquant, intense à côté du foot, deux séances le même jour), sur les séances recommandées comme confirmées → « Replanifier la semaine » : aperçu avant/après, puis « Appliquer » (annulable). Les séances faites et ajoutées à la main sont gardées ; une séance identique reste en place avec sa confirmation.
 
 ### Vue Mois
 Deux affichages : **Séances** (un point par séance, plein si faite, rouge si non faite) et **Disciplines** (un rond par discipline et par jour, **ronds imbriqués** si plusieurs disciplines, la plus longue à l’extérieur, légende en dessous). La liste des semaines indique phase, type de semaine et confirmation.
@@ -46,11 +68,11 @@ Deux affichages : **Séances** (un point par séance, plein si faite, rouge si n
 | 15 févr → 22 mars | Spécifique | voyage jusqu’au 20 févr, reprise, sortie chargée, sortie qui finit de nuit, **bloc de 3 jours** le 12–14 mars (pose ton vendredi), répétition générale 27–28 mars |
 | 29 mars → 10 avril | Affûtage | déblocage, volume −40 % puis −65 %, pas de foot la semaine de l’objectif |
 
-Construction d’une semaine type (foot le jeudi) : lundi séance structurée home-trainer (clé, en mode ERG), mardi footing à Paris (variante natation), jeudi foot, vendredi endurance optionnelle (dehors seulement s’il fait jour), samedi sortie longue (clé, variante home-trainer), dimanche seconde sortie si le volume le permet. En spécifique, le week-end enchaîne deux jours.
+Semaine type (Paris mardi-mercredi) : lundi foot, mardi footing à Paris (variante natation), jeudi foot, vendredi endurance (dehors s’il fait jour), samedi sortie longue avec la séance structurée intégrée (clé, variante home-trainer), dimanche seconde sortie si le volume le permet. Quand Paris tombe sur d’autres jours, la séance structurée revient un matin compatible (en home-trainer, mode ERG). En spécifique, le week-end enchaîne deux jours.
 
-Volume : de **4h45** (4h30 × 1,10, arrondi en dessous) à **7h** fin janvier, blocs jusqu’à **~9h**, plus longue sortie qui progresse de 45 min au plus.
+Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) : de **3h15** (3h × 1,10, arrondi en dessous) jusqu’au pic de **5h30**, blocs jusqu’à **~7h**. Tes 4h30 et 7h incluaient un foot de 1h30 : ce sont 3h et 5h30 d’endurance, et le second foot de la semaine vient en plus.
 
-> ⚠️ **Écart avec l’objectif.** Avec un pic de 7h par semaine foot compris, la plus longue sortie plafonne vers 3h, alors que le Desertus demande environ 7 à 8 h de vélo par jour pendant 7 jours. Le plan respecte ta règle (le rythme réel prime) et le bilan hebdomadaire proposera d’allonger dès que ton rythme le permet. Tu peux aussi relever le pic dans Paramètres → Programme.
+> ⚠️ **Écart avec l’objectif.** La plus longue sortie plafonne vers 3h, alors que le Desertus demande environ 7 à 8 h de vélo par jour pendant 7 jours. Le plan respecte ta règle (le rythme réel prime) ; l’évaluation de la semaine propose de relever le pic dès que ton rythme le dépasse.
 
 ## Règles appliquées (valeurs dans `src/engine/config.ts`)
 
@@ -72,7 +94,7 @@ Volume : de **4h45** (4h30 × 1,10, arrondi en dessous) à **7h** fin janvier, b
 ```bash
 npm install
 npm run dev        # serveur local
-npm test           # tests unitaires (Vitest) : 93 tests
+npm test           # tests unitaires (Vitest) : 117 tests
 npm run build      # vérification TypeScript + build PWA
 npm run icons      # régénère les icônes PNG depuis public/favicon.svg
 ```
@@ -87,6 +109,7 @@ src/engine/        TypeScript pur, testé, sans React ni Dexie
   planner.ts       macro-plan (phases, types de semaine, volumes) + construction des semaines
   workouts.ts      séances paramétrées (HT ERG, extérieur FC/RPE, sortie longue, course, natation)
   review.ts        rythme réel, plafond, recommandations chiffrées, semaine à confirmer
+  evaluate.ts      signalements, suivi du programme (retard/avance), reconstruction d’une semaine
   sun.ts           aube, lever, coucher, crépuscule (Bordeaux, sans API)
   status.ts, stats.ts, zones.ts, dates.ts, library.ts, backup.ts, activity.ts
 src/db/            Dexie : schéma v2 (semaines, recommandations), actions, programme
@@ -94,16 +117,18 @@ src/ui/            vues Semaine, Mois, Paramètres, fiche séance, bilan
 ```
 
 - La base IndexedDB garde son nom technique `desertusplan` : la renommer effacerait les données. Les sauvegardes s’appellent désormais `ascese-AAAA-MM-JJ.json` ; les anciennes restent importables.
+- Polices embarquées (hors ligne) : Inter pour le texte, Outfit pour les titres et les chiffres.
 - Couleurs des disciplines : palette vérifiée (écart de couleur ≥ 15 entre toutes les paires en vision normale, clair et sombre). Pour les daltoniens, l’orange et le vert restent proches : la légende et le détail au tap font foi. L’enduro, rare, est en gris.
 
 ## Décisions prises avec toi
 
 | Sujet | Décision |
 |---|---|
-| Volume | 4h30 **foot compris** (réponse « oui » à la question 3) : le plan raisonne en heures totales. Pic 7h, relevé si le rythme réel le permet. |
+| Volume | En heures d’**endurance** : 3h au départ, pic 5h30 (tes 4h30 / 7h moins un foot de 1h30). Le foot s’ajoute. |
 | Plafond | rythme réel × 1,10 ; semaine bloc × 1,30 (congés, ou vendredi posé en spécifique), au plus 1 toutes les 3 semaines, suivie d’une allégée. |
 | Home-trainer | Rouvy, montage 10 min. Export `.zwo`/`.mrc` : à faire (voir ci-dessous). |
-| Disponibilités | 7h30–8h30 en semaine, mardi et mercredi à Paris (course seulement), foot le jeudi, week-end jusqu’à 6 h/jour, pas de double séance. |
+| Disponibilités | 7h30–8h30 en semaine ; Paris mardi-mercredi par défaut, réglable semaine par semaine (course seulement) ; **foot lundi et jeudi obligatoire sauf à Paris, prioritaire** ; week-end jusqu’à 6 h/jour ; pas de double séance. |
+| Recalcul | Les séances recommandées **et** confirmées qui ne collent plus sont signalées ; la replanification est proposée avec aperçu, jamais appliquée seule. |
 | Exceptions | Noël du 24 déc au 1er janv (congés), étranger du 6 au 20 févr (course uniquement). |
 | Charge | sRPE (durée × RPE), TSS en info sur HT (phase 3). |
 

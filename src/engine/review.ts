@@ -3,7 +3,8 @@
 
 import { CONFIG } from './config';
 import { addDays, diffDays, isoWeekday, labelDay, weekDays } from './dates';
-import { dayException, REDUCED_KINDS } from './planner';
+import { dayException, footballDaysOf, parisDaysOf, REDUCED_KINDS } from './planner';
+import { isEndurance } from './sports';
 import { isPending } from './status';
 import { inRange, summarize, type WeekSummary } from './stats';
 import type { Activity, AppSettings, Justification, LocalDate, PlannedSession, WeekPlan } from './types';
@@ -26,7 +27,8 @@ export interface Rhythm {
 }
 
 export function weekDone(activities: Activity[], weekStart: LocalDate): { hours: number; sessions: number } {
-  const list = activities.filter((a) => inRange(a.date, weekStart, 7));
+  // Rythme réel en heures d'endurance : le foot et l'enduro comptent dans la charge, pas dans le volume.
+  const list = activities.filter((a) => inRange(a.date, weekStart, 7) && isEndurance(a.sport));
   return { hours: list.reduce((s, a) => s + a.durationSec / 3600, 0), sessions: list.length };
 }
 
@@ -109,7 +111,7 @@ export function isIntense(s: PlannedSession): boolean {
 const isBike = (s: PlannedSession) => s.sport === 'gravel';
 const live = (s: PlannedSession) => s.status !== 'cancelled';
 const sacrificable = (s: PlannedSession) => isPending(s) && s.priority === 'optional' && s.sport !== 'football' && s.sport !== 'enduro';
-const hours = (list: PlannedSession[]) => list.filter(live).reduce((s, x) => s + x.targetDurationMin / 60, 0);
+const hours = (list: PlannedSession[]) => list.filter((x) => live(x) && isEndurance(x.sport)).reduce((s, x) => s + x.targetDurationMin / 60, 0);
 const h = (v: number) => formatHours(v);
 
 /** Annule des séances optionnelles (les plus longues d'abord), puis raccourcit la plus longue clé. */
@@ -143,6 +145,8 @@ function reduceTo(target: number, list: PlannedSession[]): { actions: ReviewActi
 function freeDay(s: PlannedSession, weekStart: LocalDate, list: PlannedSession[], settings: AppSettings, today: LocalDate): LocalDate | null {
   const a = settings.availability;
   const footDays = list.filter((x) => live(x) && x.sport === 'football').map((x) => x.date);
+  const paris = new Set(parisDaysOf(weekStart, a));
+  const footballPriority = new Set(footballDaysOf(weekStart, a));
   for (const d of weekDays(weekStart)) {
     if (d < today) continue;
     if (list.some((x) => live(x) && x.date === d)) continue;
@@ -152,7 +156,8 @@ function freeDay(s: PlannedSession, weekStart: LocalDate, list: PlannedSession[]
     const needs = Math.min(s.targetDurationMin, 60);
     const isFree = exc === 'leave' || isoWeekday(d) >= 6;
     if (!isFree && (!t || t.minutes < needs)) continue;
-    if (!isFree && t.paris && s.sport !== 'run') continue;
+    if (paris.has(d) && s.sport !== 'run') continue;
+    if (footballPriority.has(d) && s.sport !== 'football') continue;
     if (exc === 'runOnly' && s.sport !== 'run') continue;
     if (isIntense(s) && footDays.some((f) => Math.abs(diffDays(f, d)) <= R.footballBufferDays)) continue;
     return d;

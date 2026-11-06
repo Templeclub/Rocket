@@ -278,6 +278,7 @@ export function instantiate(t: SessionTemplate, date: LocalDate, now: number = D
     date,
     status: 'planned',
     origin: 'manual',
+    confirmed: true,
     templateId: t.id,
     createdAt: now,
     updatedAt: now,
@@ -302,6 +303,7 @@ export function blankSession(date: LocalDate, now: number = Date.now()): Planned
     date,
     status: 'planned',
     origin: 'manual',
+    confirmed: true,
     createdAt: now,
     updatedAt: now,
   };

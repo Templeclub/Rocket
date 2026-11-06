@@ -1,26 +1,27 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { db } from '../../db/db';
 import { CONFIG } from '../../engine/config';
-import { addDays, cap, diffDays, labelDay } from '../../engine/dates';
+import { addDays, cap, diffDays, labelDay, labelWeekday } from '../../engine/dates';
 import { SPORT_KEYS, SPORT_META, sportKey } from '../../engine/sports';
 import { isPending } from '../../engine/status';
 import type { LocalDate, SportKey } from '../../engine/types';
 import { formatDuration, formatHours } from '../../engine/zones';
 import { useNav, useSessionActions } from '../hooks';
-import { IconStar } from './Icons';
+import { IconCheck, IconOpen, IconStar, IconX } from './Icons';
 import { Sheet } from './Sheet';
 
 function useDayLoads(from: LocalDate, days: number) {
   return (
     useLiveQuery(async () => {
       const list = await db.sessions.where('date').between(from, addDays(from, days), true, false).toArray();
-      const map = new Map<LocalDate, { n: number; h: number }>();
+      const map = new Map<LocalDate, { n: number; h: number; sports: SportKey[] }>();
       for (const s of list) {
         if (s.status === 'cancelled') continue;
-        const e = map.get(s.date) ?? { n: 0, h: 0 };
+        const e = map.get(s.date) ?? { n: 0, h: 0, sports: [] };
         e.n += 1;
         e.h += s.targetDurationMin / 60;
+        e.sports.push(sportKey(s.sport, s.environment));
         map.set(s.date, e);
       }
       return map;
@@ -28,93 +29,143 @@ function useDayLoads(from: LocalDate, days: number) {
   );
 }
 
-/** Report : 1er tap sur « Reporter » (carte), 2e tap sur le jour. */
-export function PostponeSheet({ id }: { id: string }) {
+function Action({ label, onClick, children, tone }: { label: string; onClick: () => void; children: ReactNode; tone?: 'accent' | 'danger' }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 min-w-0 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 text-xs font-medium active:scale-95 ${
+        tone === 'accent' ? 'bg-accent text-accent-ink' : tone === 'danger' ? 'bg-raised text-danger' : 'bg-raised'
+      }`}
+    >
+      {children}
+      <span className="truncate max-w-full px-1">{label}</span>
+    </button>
+  );
+}
+
+/**
+ * Toutes les actions d'une séance dans un seul panneau (ouvert par « ⋯ ») :
+ * fait, confirmer, variante, annuler en 2 taps ; reporter et échanger en 2 taps (le jour ou la séance sont ici).
+ */
+export function ActionsSheet({ id }: { id: string }) {
   const nav = useNav();
   const act = useSessionActions();
   const session = useLiveQuery(() => db.sessions.get(id), [id]);
   const start = act.today;
   const n = CONFIG.ui.postponeDaysOffered + 1;
   const loads = useDayLoads(start, n + 1);
+  const others = useLiveQuery(() => db.sessions.where('date').between(start, addDays(start, 14), true, false).toArray(), [start]);
   if (!session) return null;
-
-  const days = Array.from({ length: n + 1 }, (_, i) => addDays(start, i)).filter((d) => d !== session.date);
-  const pick = (d: LocalDate) => {
+  const meta = SPORT_META[sportKey(session.sport, session.environment)];
+  const pending = isPending(session);
+  const close = (fn: () => void) => () => {
     nav.close();
-    act.postpone(id, d);
+    fn();
   };
 
+  const days = Array.from({ length: n + 1 }, (_, i) => addDays(start, i)).filter((d) => d !== session.date);
+  const swaps = (others ?? []).filter((s) => s.id !== id && isPending(s) && s.date !== session.date).sort((a, b) => a.date.localeCompare(b.date));
+
   return (
-    <Sheet title={`Reporter « ${session.title} »`} onClose={nav.close}>
-      <div className="grid grid-cols-2 gap-2">
-        {days.map((d) => {
-          const l = loads.get(d);
-          const rel = diffDays(d, start);
-          return (
-            <button key={d} onClick={() => pick(d)} className="rounded-xl bg-raised p-3 text-left active:scale-[0.98]">
-              <div className="font-medium">{rel === 0 ? 'Aujourd’hui' : rel === 1 ? 'Demain' : cap(labelDay(d))}</div>
-              <div className="text-xs text-muted">
-                {rel <= 1 ? labelDay(d) + ' · ' : ''}
-                {l ? `${l.n} séance${l.n > 1 ? 's' : ''} · ${formatHours(l.h)}` : 'libre'}
+    <Sheet
+      title={
+        <span className="flex items-center gap-2">
+          <span>{meta.emoji}</span>
+          <span className="truncate">{session.title}</span>
+        </span>
+      }
+      onClose={nav.close}
+    >
+      <div className="space-y-4">
+        <div className="text-sm text-muted -mt-1">
+          {cap(labelDay(session.date))} · {formatDuration(session.targetDurationMin * 60)} · {pending ? (session.confirmed ? 'confirmée' : 'recommandée') : session.status === 'done' ? 'faite' : 'annulée'}
+        </div>
+
+        <div className="flex gap-2">
+          {pending && (
+            <Action label="Fait" tone="accent" onClick={close(() => act.done(id))}>
+              <IconCheck />
+            </Action>
+          )}
+          {pending && (
+            <Action label={session.confirmed ? 'Recommandée' : 'Confirmer'} onClick={close(() => act.setConfirmed([id], !session.confirmed))}>
+              <span className={`w-5 h-5 rounded-full border-2 ${session.confirmed ? 'border-dashed border-muted' : 'border-accent bg-accent/20'}`} />
+            </Action>
+          )}
+          {pending && session.alternative && (
+            <Action label={session.alternative.sport === 'swim' ? 'Natation' : session.alternative.environment === 'indoor' ? 'Home-trainer' : 'Extérieur'} onClick={close(() => act.switchVariant(id, session.alternative!.title))}>
+              <span className="text-lg leading-none">{SPORT_META[sportKey(session.alternative.sport, session.alternative.environment)].emoji}</span>
+            </Action>
+          )}
+          {pending && (
+            <Action label="Annuler" tone="danger" onClick={close(() => act.cancel(id))}>
+              <IconX />
+            </Action>
+          )}
+          {session.status === 'cancelled' && (
+            <Action label="Rétablir" tone="accent" onClick={close(() => act.restore(id))}>
+              <IconCheck />
+            </Action>
+          )}
+          <Action label="Fiche" onClick={() => nav.replace({ kind: 'session', id })}>
+            <IconOpen />
+          </Action>
+        </div>
+
+        {pending && (
+          <section>
+            <h3 className="text-sm font-semibold mb-2">Reporter au</h3>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+              {days.map((d) => {
+                const l = loads.get(d);
+                const rel = diffDays(d, start);
+                return (
+                  <button
+                    key={d}
+                    onClick={close(() => act.postpone(id, d))}
+                    className="shrink-0 w-[4.6rem] rounded-2xl bg-raised p-2 text-center active:scale-95"
+                    aria-label={`Reporter au ${labelDay(d)}`}
+                  >
+                    <div className="text-[11px] text-muted">{rel === 0 ? 'Auj.' : rel === 1 ? 'Demain' : cap(labelWeekday(d))}</div>
+                    <div className="font-display text-xl font-semibold leading-tight">{+d.slice(8)}</div>
+                    <div className="flex justify-center gap-0.5 h-2 mt-1">
+                      {l ? l.sports.slice(0, 3).map((k: SportKey, i: number) => <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: SPORT_META[k].color }} />) : null}
+                    </div>
+                    <div className="text-[10px] text-muted mt-0.5">{l ? formatHours(l.h) : 'libre'}</div>
+                  </button>
+                );
+              })}
+              <label className="shrink-0 w-[4.6rem] rounded-2xl border border-dashed border-line p-2 text-center text-[11px] text-muted flex flex-col items-center justify-center relative">
+                Autre date
+                <input type="date" min={start} className="absolute inset-0 opacity-0" onChange={(e) => e.target.value && (nav.close(), act.postpone(id, e.target.value))} />
+              </label>
+            </div>
+          </section>
+        )}
+
+        {pending && session.date >= start && (
+          <section>
+            <h3 className="text-sm font-semibold mb-2">Échanger avec</h3>
+            {swaps.length === 0 ? (
+              <p className="text-sm text-muted">Aucune autre séance en attente sur 2 semaines.</p>
+            ) : (
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+                {swaps.map((s) => {
+                  const m = SPORT_META[sportKey(s.sport, s.environment)];
+                  return (
+                    <button key={s.id} onClick={close(() => act.swap(id, s.id))} className="shrink-0 w-36 rounded-2xl bg-raised p-2.5 text-left active:scale-95">
+                      <div className="text-[11px] text-muted">{cap(labelDay(s.date))}</div>
+                      <div className="text-sm font-medium truncate">
+                        {m.emoji} {s.title}
+                      </div>
+                      <div className="text-[11px] text-muted">{formatDuration(s.targetDurationMin * 60)}</div>
+                    </button>
+                  );
+                })}
               </div>
-            </button>
-          );
-        })}
-      </div>
-      <label className="mt-3 flex items-center gap-3 rounded-xl border border-line p-3">
-        <span className="text-sm text-muted">Autre date</span>
-        <input
-          type="date"
-          min={start}
-          className="flex-1 bg-transparent"
-          onChange={(e) => e.target.value && pick(e.target.value)}
-        />
-      </label>
-    </Sheet>
-  );
-}
-
-/** Échange : 1er tap sur ⇄ (carte), 2e tap sur l'autre séance. */
-export function SwapSheet({ id }: { id: string }) {
-  const nav = useNav();
-  const act = useSessionActions();
-  const session = useLiveQuery(() => db.sessions.get(id), [id]);
-  const others = useLiveQuery(
-    () => db.sessions.where('date').between(act.today, addDays(act.today, 14), true, false).toArray(),
-    [act.today],
-  );
-  if (!session) return null;
-  const candidates = (others ?? [])
-    .filter((s) => s.id !== id && isPending(s) && s.date !== session.date)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  return (
-    <Sheet title={`Échanger « ${session.title} » avec…`} onClose={nav.close}>
-      {candidates.length === 0 && <p className="text-muted text-sm">Aucune autre séance en attente sur les 2 prochaines semaines.</p>}
-      <div className="space-y-2">
-        {candidates.map((s) => {
-          const m = SPORT_META[sportKey(s.sport, s.environment)];
-          return (
-            <button
-              key={s.id}
-              onClick={() => {
-                nav.close();
-                act.swap(id, s.id);
-              }}
-              className="w-full rounded-xl bg-raised p-3 text-left flex items-center gap-3"
-            >
-              <span className="w-1.5 self-stretch rounded" style={{ background: m.color }} />
-              <span className="flex-1">
-                <span className="block font-medium">
-                  {m.emoji} {s.title}
-                </span>
-                <span className="block text-xs text-muted">
-                  {labelDay(s.date)} · {formatDuration(s.targetDurationMin * 60)}
-                </span>
-              </span>
-            </button>
-          );
-        })}
+            )}
+          </section>
+        )}
       </div>
     </Sheet>
   );
@@ -139,7 +190,7 @@ export function CreateSheet({ date }: { date: LocalDate }) {
 
   return (
     <Sheet
-      title={`Ajouter · ${labelDay(date)}`}
+      title={`Ajouter · ${cap(labelDay(date))}`}
       onClose={nav.close}
       full
       footer={
@@ -153,12 +204,12 @@ export function CreateSheet({ date }: { date: LocalDate }) {
         </div>
       }
     >
-      <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-4 px-4">
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
         {(['all', ...SPORT_KEYS] as const).map((k) => (
           <button
             key={k}
             onClick={() => setFilter(k)}
-            className={`shrink-0 h-9 px-3 rounded-full text-sm ${filter === k ? 'bg-accent text-accent-ink' : 'bg-raised'}`}
+            className={`shrink-0 h-9 px-3 rounded-full text-sm ${filter === k ? 'bg-ink text-bg' : 'bg-raised'}`}
           >
             {k === 'all' ? 'Tous' : `${SPORT_META[k].emoji} ${SPORT_META[k].short}`}
           </button>
@@ -174,16 +225,16 @@ export function CreateSheet({ date }: { date: LocalDate }) {
                 nav.close();
                 act.createFromTemplate(t.id, date);
               }}
-              className="w-full rounded-xl bg-raised p-3 text-left flex items-center gap-3 active:scale-[0.99]"
+              className="w-full rounded-2xl bg-raised p-3 text-left flex items-center gap-3 active:scale-[0.99]"
             >
-              <span className="w-1.5 self-stretch rounded" style={{ background: m.color }} />
+              <span className="w-1 self-stretch rounded" style={{ background: m.color }} />
               <span className="flex-1 min-w-0">
                 <span className="flex items-center gap-1.5 font-medium">
                   <span>{m.emoji}</span>
                   <span className="truncate">{t.title}</span>
                   {t.priority === 'key' && (
                     <span className="text-accent">
-                      <IconStar />
+                      <IconStar className="w-3 h-3" />
                     </span>
                   )}
                 </span>

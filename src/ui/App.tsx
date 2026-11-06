@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, addMonths, cap, labelMonth, labelWeek, startOfMonth, startOfWeek, todayLocal } from '../engine/dates';
 import type { LocalDate } from '../engine/types';
 import { IconLeft, IconMonth, IconRight, IconSettings, IconWeek } from './components/Icons';
-import { CreateSheet, PostponeSheet, SwapSheet } from './components/QuickSheets';
+import { ActionsSheet, CreateSheet } from './components/QuickSheets';
+import { ReplanSheet } from './components/WeekEvaluation';
 import { ToastProvider } from './components/Toast';
 import { NavCtx, type Nav, type Overlay } from './hooks';
 import { MonthView } from './views/MonthView';
@@ -25,10 +26,12 @@ function OverlayView({ o }: { o: Overlay }) {
       return <TemplateSheet id={o.id} />;
     case 'activity':
       return <ActivitySheet id={o.id} sessionId={o.sessionId} date={o.date} />;
+    case 'actions':
     case 'postpone':
-      return <PostponeSheet id={o.id} />;
     case 'swap':
-      return <SwapSheet id={o.id} />;
+      return <ActionsSheet id={o.id} />;
+    case 'replan':
+      return <ReplanSheet weekStart={o.weekStart} />;
     case 'review':
       return <ReviewSheet weekStart={o.weekStart} />;
   }
@@ -88,31 +91,32 @@ export function App() {
     <NavCtx.Provider value={nav}>
       <ToastProvider>
         <div className="min-h-dvh max-w-xl mx-auto flex flex-col">
-          <header className="sticky top-0 z-20 bg-bg/95 backdrop-blur px-4 pt-3 pb-2">
-            <h1 className="text-xl font-bold">{cap(title)}</h1>
+          <header className="sticky top-0 z-20 bg-bg/90 backdrop-blur-md px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-end gap-2">
+            <h1 className="font-display text-2xl font-semibold tracking-tight">{cap(title)}</h1>
+            <span className="ml-auto mb-1 font-display text-xs font-semibold tracking-[0.2em] text-accent uppercase">Ascèse</span>
           </header>
-          <main className="flex-1 px-3 pb-40">
+          <main className="flex-1 px-3 pb-44">
             {view === 'week' && <WeekView weekStart={weekStart} focusDate={focusDate} />}
             {view === 'month' && <MonthView monthStart={monthStart} />}
             {view === 'settings' && <SettingsView />}
           </main>
 
-          <nav className="fixed bottom-0 inset-x-0 z-30 bg-surface/95 backdrop-blur border-t border-line pb-safe">
-            <div className="max-w-xl mx-auto">
+          <nav className="fixed bottom-0 inset-x-0 z-30 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pointer-events-none">
+            <div className="max-w-xl mx-auto space-y-2 pointer-events-auto">
               {view !== 'settings' && (
-                <div className="flex items-center justify-between px-2 pt-1.5">
-                  <button onClick={() => shift(-1)} className="w-12 h-11 grid place-items-center rounded-full active:bg-raised" aria-label="Précédent">
+                <div className="mx-auto w-fit flex items-center gap-1 rounded-full bg-surface/95 backdrop-blur card-shadow border border-line p-1">
+                  <button onClick={() => shift(-1)} className="w-10 h-10 grid place-items-center rounded-full active:bg-raised" aria-label="Précédent">
                     <IconLeft />
                   </button>
-                  <button onClick={toToday} className="h-11 px-4 rounded-full text-sm font-medium active:bg-raised">
-                    {view === 'week' ? labelWeek(weekStart) : cap(labelMonth(monthStart))} · aujourd’hui
+                  <button onClick={toToday} className="h-10 px-3 rounded-full text-sm font-medium active:bg-raised tabular-nums">
+                    {view === 'week' ? labelWeek(weekStart) : cap(labelMonth(monthStart))}
                   </button>
-                  <button onClick={() => shift(1)} className="w-12 h-11 grid place-items-center rounded-full active:bg-raised" aria-label="Suivant">
+                  <button onClick={() => shift(1)} className="w-10 h-10 grid place-items-center rounded-full active:bg-raised" aria-label="Suivant">
                     <IconRight />
                   </button>
                 </div>
               )}
-              <div className="grid grid-cols-3">
+              <div className="grid grid-cols-3 rounded-3xl bg-ink text-bg p-1.5 shadow-xl">
                 {(
                   [
                     ['week', 'Semaine', <IconWeek key="w" />],
@@ -126,7 +130,9 @@ export function App() {
                       setFocusDate(undefined);
                       setView(v);
                     }}
-                    className={`h-14 flex flex-col items-center justify-center gap-0.5 text-xs ${view === v ? 'text-accent font-semibold' : 'text-muted'}`}
+                    className={`h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+                      view === v ? 'bg-bg text-ink' : 'text-bg/70'
+                    }`}
                     aria-current={view === v ? 'page' : undefined}
                   >
                     {icon}
