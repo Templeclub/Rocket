@@ -1,5 +1,5 @@
 import { CONFIG } from './config';
-import type { AppSettings, Block, Profile, Target } from './types';
+import type { AppSettings, Availability, Block, Profile, Target } from './types';
 
 export interface Zone {
   index: number; // 1-based
@@ -44,12 +44,39 @@ export function watts(ftp: number, pct: number): number {
   return Math.round((ftp * pct) / 100);
 }
 
+export function defaultAvailability(): Availability {
+  const a = CONFIG.availability;
+  return {
+    template: Object.fromEntries(Object.entries(a.template).map(([k, v]) => [Number(k), { ...v }])),
+    footballDay: a.footballDay,
+    footballMin: a.footballMin,
+    weekdayMorningStart: a.weekdayMorningStart,
+    exceptions: a.exceptions.map((e) => ({ ...e })),
+  };
+}
+
 export function defaultSettings(): AppSettings {
   return {
     id: 'app',
     profile: { ...CONFIG.profile },
+    availability: defaultAvailability(),
+    volume: { startWeeklyHours: CONFIG.startVolume.weeklyHours, peakWeeklyHours: CONFIG.startVolume.peakWeeklyHours },
     powerZoneUpperPct: [...CONFIG.powerZoneUpperPct],
     hrZoneBoundsPct: [...CONFIG.hrZoneBoundsPct],
+  };
+}
+
+/** Complète des paramètres enregistrés par une version antérieure. */
+export function withDefaults(s: Partial<AppSettings> | undefined): AppSettings {
+  const d = defaultSettings();
+  if (!s) return d;
+  return {
+    ...d,
+    ...s,
+    id: 'app',
+    profile: { ...d.profile, ...s.profile },
+    availability: s.availability ? { ...d.availability, ...s.availability } : d.availability,
+    volume: { ...d.volume, ...s.volume },
   };
 }
 

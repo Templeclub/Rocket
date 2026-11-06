@@ -148,6 +148,8 @@ describe('sauvegarde', () => {
     templates: builtinTemplates(),
     goals: defaultGoals(),
     settings: [defaultSettings()],
+    weeks: [],
+    recommendations: [],
   };
 
   it('aller-retour export → import', () => {
@@ -155,6 +157,13 @@ describe('sauvegarde', () => {
     const r = parseBackup(text);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.backup.data).toEqual(JSON.parse(JSON.stringify(data)));
+  });
+
+  it('accepte une sauvegarde de la phase 0 (DesertusPlan, version 1)', () => {
+    const old = { app: 'desertusplan', schemaVersion: 1, exportedAt: '', data: { sessions: data.sessions, activities: [], templates: [], goals: [], settings: [] } };
+    const r = parseBackup(JSON.stringify(old));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.backup.data.weeks).toEqual([]);
   });
 
   it('refuse un fichier qui n’est pas une sauvegarde', () => {

@@ -68,6 +68,8 @@ export interface PlannedSession extends SessionContent {
   originalDate?: LocalDate;
   origin: Origin;
   templateId?: string;
+  /** Variante basculable en 1 tap (home-trainer pour une sortie, natation pour une course). */
+  alternative?: SessionContent;
   createdAt: number;
   updatedAt: number;
 }
@@ -111,13 +113,75 @@ export interface Profile {
   vo2max: number;
 }
 
+export type ExceptionKind = 'leave' | 'runOnly' | 'unavailable';
+
+export interface DayAvailability {
+  /** Minutes disponibles ce jour-là (le matin en semaine). */
+  minutes: number;
+  /** Jour à Paris : course uniquement. */
+  paris: boolean;
+}
+
+export interface AvailabilityException {
+  id: string;
+  start: LocalDate;
+  end: LocalDate;
+  /** leave = congé (journée libre), runOnly = course uniquement, unavailable = rien. */
+  kind: ExceptionKind;
+  label: string;
+}
+
+export interface Availability {
+  /** Clés 1 (lundi) à 7 (dimanche). */
+  template: Record<number, DayAvailability>;
+  footballDay: number;
+  footballMin: number;
+  weekdayMorningStart: string;
+  exceptions: AvailabilityException[];
+}
+
+export interface VolumeSettings {
+  /** Heures totales par semaine au départ (foot compris). */
+  startWeeklyHours: number;
+  /** Pic de volume (heures totales) tant que le rythme réel ne permet pas plus. */
+  peakWeeklyHours: number;
+}
+
 export interface AppSettings {
   id: 'app';
   profile: Profile;
+  availability: Availability;
+  volume: VolumeSettings;
   /** Bornes hautes des zones de puissance, en % de la FTP (la dernière zone est ouverte). */
   powerZoneUpperPct: number[];
   /** Bornes des zones de FC, en % de la FC max : [bas Z1, haut Z1, haut Z2, …, haut Z5]. */
   hrZoneBoundsPct: number[];
+}
+
+export type Phase = 'base' | 'development' | 'specific' | 'taper';
+export type WeekKind = 'load' | 'light' | 'block' | 'travel' | 'taper' | 'race';
+
+export interface WeekPlan {
+  weekStart: LocalDate;
+  phase: Phase;
+  kind: WeekKind;
+  /** Cible en heures totales (foot compris). */
+  targetHours: number;
+  /** Plus longue sortie prévue (minutes). */
+  longRideMin: number;
+  notes: string[];
+  generatedAt: number;
+  /** Semaine confirmée lors du bilan hebdomadaire. */
+  confirmedAt?: number;
+  /** Semaine exclue du rythme réel (R1). */
+  excluded?: boolean;
+}
+
+export interface Justification {
+  metric: string;
+  value: number;
+  threshold: number;
+  unit?: string;
 }
 
 export interface Recommendation {
@@ -125,6 +189,9 @@ export interface Recommendation {
   weekStart: LocalDate;
   type: string;
   text: string;
-  justification: { metric: string; value: number; threshold: number; unit?: string };
+  justification: Justification;
   status: 'proposed' | 'accepted' | 'ignored';
+  /** Libellé du choix retenu, si acceptée. */
+  choice?: string;
+  decidedAt?: number;
 }

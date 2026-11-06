@@ -26,6 +26,13 @@
   --c-ok: #2f8a55;
   --c-warn: #b7791f;
   --c-danger: #c24141;
+  /* Disciplines : palette validée (vision normale ≥ 15 sur toutes les paires), clair */
+  --sp-gravel-out: #f07a2a;
+  --sp-gravel-in: #7b4fd6;
+  --sp-run: #1f9e4a;
+  --sp-swim: #1c86e0;
+  --sp-football: #d43f86;
+  --sp-enduro: #8a8780;
   color-scheme: light;
 }
 
@@ -42,6 +49,12 @@
     --c-ok: #55bb7f;
     --c-warn: #e0a84a;
     --c-danger: #e06b6b;
+    --sp-gravel-out: #e06f25;
+    --sp-gravel-in: #9a5ce6;
+    --sp-run: #1f9d50;
+    --sp-swim: #2a8ad6;
+    --sp-football: #d4458c;
+    --sp-enduro: #8d8b85;
     color-scheme: dark;
   }
 }

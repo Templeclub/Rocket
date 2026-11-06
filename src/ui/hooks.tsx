@@ -4,7 +4,7 @@ import { db } from '../db/db';
 import * as A from '../db/actions';
 import { labelDay, todayLocal } from '../engine/dates';
 import type { AppSettings, LocalDate } from '../engine/types';
-import { defaultSettings } from '../engine/zones';
+import { withDefaults } from '../engine/zones';
 import { useToast } from './components/Toast';
 
 export type Overlay =
@@ -14,7 +14,8 @@ export type Overlay =
   | { kind: 'template'; id?: string }
   | { kind: 'activity'; id?: string; sessionId?: string; date?: LocalDate }
   | { kind: 'postpone'; id: string }
-  | { kind: 'swap'; id: string };
+  | { kind: 'swap'; id: string }
+  | { kind: 'review'; weekStart: LocalDate };
 
 export interface Nav {
   open: (o: Overlay) => void;
@@ -28,7 +29,7 @@ export const NavCtx = createContext<Nav>({ open: () => {}, replace: () => {}, cl
 export const useNav = () => useContext(NavCtx);
 
 export function useSettings(): AppSettings {
-  return useLiveQuery(() => db.settings.get('app'), []) ?? defaultSettings();
+  return withDefaults(useLiveQuery(() => db.settings.get('app'), []));
 }
 
 /** Date du jour (Europe/Paris), recalculée au retour dans l'appli. */

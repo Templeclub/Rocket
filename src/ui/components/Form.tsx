@@ -5,7 +5,16 @@ import { formatDuration, parseDuration } from '../../engine/zones';
 
 export const inputCls = 'w-full h-11 rounded-lg bg-raised px-3 outline-none focus:ring-2 focus:ring-accent';
 
-export function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
+export function Field({ label, children, className = '', group = false }: { label: string; children: ReactNode; className?: string; group?: boolean }) {
+  // Un groupe de boutons ne doit pas être dans un <label> : un tap sur le libellé activerait le premier bouton.
+  if (group) {
+    return (
+      <div className={`block ${className}`} role="group" aria-label={label}>
+        <span className="block text-xs text-muted mb-1">{label}</span>
+        {children}
+      </div>
+    );
+  }
   return (
     <label className={`block ${className}`}>
       <span className="block text-xs text-muted mb-1">{label}</span>

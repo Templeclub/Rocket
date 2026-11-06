@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import * as A from '../../db/actions';
+import { switchVariant } from '../../db/program';
 import { db } from '../../db/db';
 import { activityFromSession, blankActivity } from '../../engine/activity';
 import { cap, isLocalDate, labelDay, labelShort } from '../../engine/dates';
@@ -125,6 +126,27 @@ export function SessionSheet({ id }: { id: string }) {
           <span className="text-muted"> · {meta.label} · {displayStatus(session, act.today)}</span>
           {session.originalDate && <span className="text-warn"> · prévue d’abord le {labelShort(session.originalDate)}</span>}
         </div>
+
+        {session.alternative && pending && (
+          <button
+            className="w-full rounded-xl border border-dashed border-accent text-left p-3 flex items-center gap-3"
+            onClick={async () => {
+              const undo = await switchVariant(id);
+              toast(`Basculée : ${session.alternative!.title}`, { label: 'Annuler', run: undo });
+            }}
+          >
+            <span className="text-xl" aria-hidden="true">
+              {SPORT_META[sportKey(session.alternative.sport, session.alternative.environment)].emoji}
+            </span>
+            <span className="flex-1">
+              <span className="block text-sm font-medium">Basculer sur la variante</span>
+              <span className="block text-xs text-muted">
+                {session.alternative.title} · {formatDuration(session.alternative.targetDurationMin * 60)}
+                {session.sport === 'run' ? ' (mauvais temps)' : session.environment === 'outdoor' ? ' (météo, nuit)' : ''}
+              </span>
+            </span>
+          </button>
+        )}
 
         <ContentView c={session} settings={settings} />
 
@@ -331,7 +353,7 @@ export function ActivitySheet({ id, sessionId, date }: { id?: string; sessionId?
     >
       <div className="space-y-3">
         {!draft.plannedSessionId && (
-          <Field label="Sport">
+          <Field label="Sport" group>
             <SportPicker value={key} onChange={(k) => set(fromSportKey(k))} />
           </Field>
         )}
