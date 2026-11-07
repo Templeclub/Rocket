@@ -4,21 +4,24 @@ import * as A from '../../db/actions';
 import { db, exportData, importData } from '../../db/db';
 import { backupFileName, makeBackup, parseBackup } from '../../engine/backup';
 import { CONFIG } from '../../engine/config';
-import { isLocalDate } from '../../engine/dates';
+import { isLocalDate, labelShort } from '../../engine/dates';
 import { builtinTemplates } from '../../engine/library';
 import { SPORT_KEYS, SPORT_META, sportKey } from '../../engine/sports';
 import type { AppSettings, Goal, Profile } from '../../engine/types';
-import { formatDuration, hrZones, powerZones } from '../../engine/zones';
+import { formatDuration, formatHours, hrZones, powerZones } from '../../engine/zones';
 import { Field, inputCls, NumberInput } from '../components/Form';
-import { IconPlus, IconStar } from '../components/Icons';
+import { IconCalendarSpark, IconFlag, IconPin, IconPlus, IconPulse, IconRight, IconSave, IconSettings, IconStack, IconStar, IconLink } from '../components/Icons';
+import { Sheet } from '../components/Sheet';
+import { StravaSection } from './StravaSection';
 import { useToast } from '../components/Toast';
 import { useNav, useSettings } from '../hooks';
 import { useInstallPrompt } from '../install';
 import { AvailabilitySection, ProgramSection } from './ProgramSettings';
+import { SportGlyph } from '../components/SportGlyph';
 
 function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
-    <section className="rounded-2xl bg-surface border border-line p-3 space-y-3">
+    <section className="rounded-2xl bg-raised/60 p-3 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">{title}</h2>
         {aside}
@@ -28,41 +31,150 @@ function Section({ title, children, aside }: { title: string; children: ReactNod
   );
 }
 
+export type SettingsSection = 'program' | 'availability' | 'goal' | 'profile' | 'library' | 'strava' | 'data' | 'app';
+
+const TITLES: Record<SettingsSection, string> = {
+  program: 'Programme',
+  availability: 'Disponibilités',
+  goal: 'Objectif',
+  profile: 'Profil et zones',
+  library: 'Séances types',
+  strava: 'Strava',
+  data: 'Sauvegarde',
+  app: 'Application',
+};
+
+function Row({ section, icon, detail }: { section: SettingsSection; icon: ReactNode; detail: ReactNode }) {
+  const nav = useNav();
+  return (
+    <button onClick={() => nav.open({ kind: 'settings', section })} className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-raised">
+      <span className="w-9 h-9 rounded-xl bg-raised grid place-items-center text-muted shrink-0">{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-medium">{TITLES[section]}</span>
+        <span className="block text-xs text-muted truncate">{detail}</span>
+      </span>
+      <IconRight className="w-4 h-4 text-muted" />
+    </button>
+  );
+}
+
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted px-2 mb-1.5">{title}</h2>
+      <div className="rounded-2xl bg-surface card-shadow divide-y divide-line overflow-hidden">{children}</div>
+    </section>
+  );
+}
+
+/** Accueil des paramètres : rubriques regroupées, chacune s'ouvre dans son panneau. */
 export function SettingsView() {
   const settings = useSettings();
-  const save = (s: AppSettings) => A.saveSettings(s);
-  const setProfile = (p: Partial<Profile>) => save({ ...settings, profile: { ...settings.profile, ...p } });
-
+  const weeks = useLiveQuery(() => db.weeks.count(), []) ?? 0;
+  const goal = useLiveQuery(async () => (await db.goals.toArray()).find((g) => g.kind === 'main'), []);
+  const templates = useLiveQuery(() => db.templates.count(), []) ?? 0;
+  const strava = useLiveQuery(() => db.integrations.get('strava'), []);
+  const p = settings.profile;
+  const a = settings.availability;
+  const days = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
+  const parisDays = Object.entries(a.template).filter(([, t]) => t.paris).map(([k]) => days[Number(k) - 1]);
   return (
-    <div className="space-y-3">
-      <ProgramSection />
-      <AvailabilitySection />
-      <Section title="Profil">
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="FTP (W)">
-            <NumberInput value={settings.profile.ftp} onChange={(v) => v && setProfile({ ftp: v })} />
-          </Field>
-          <Field label="FC max (bpm)">
-            <NumberInput value={settings.profile.hrMax} onChange={(v) => v && setProfile({ hrMax: v })} />
-          </Field>
-          <Field label="FC repos (bpm)">
-            <NumberInput value={settings.profile.hrRest} onChange={(v) => v && setProfile({ hrRest: v })} />
-          </Field>
-          <Field label="VO2max">
-            <NumberInput value={settings.profile.vo2max} step={0.1} onChange={(v) => v && setProfile({ vo2max: v })} />
-          </Field>
-        </div>
-      </Section>
-
-      <PowerZones settings={settings} save={save} />
-      <HrZonesSection settings={settings} save={save} />
-      <GoalSection />
-      <Library />
-      <DataSection />
-      <AppSection />
+    <div className="space-y-5">
+      <Group title="Entraînement">
+        <Row section="program" icon={<IconCalendarSpark />} detail={weeks ? `${weeks} semaines · ${formatHoursShort(settings.volume.startWeeklyHours)} → ${formatHoursShort(settings.volume.peakWeeklyHours)} d’endurance` : 'Pas encore généré'} />
+        <Row section="availability" icon={<IconPin />} detail={`Paris ${parisDays.join('-') || 'aucun'} · foot ${a.footballDays.map((d) => days[d - 1]).join(' et ')} · ${a.exceptions.length} absence(s)`} />
+        <Row section="goal" icon={<IconFlag />} detail={goal ? `${goal.name} · ${labelShort(goal.date)}` : '—'} />
+      </Group>
+      <Group title="Profil">
+        <Row section="profile" icon={<IconPulse />} detail={`FTP ${p.ftp} W · FC max ${p.hrMax} · zones`} />
+        <Row section="library" icon={<IconStack />} detail={`${templates} séances types`} />
+      </Group>
+      <Group title="Connexions">
+        <Row
+          section="strava"
+          icon={<IconLink />}
+          detail={strava ? `Connecté${strava.athleteName ? ` · ${strava.athleteName}` : ''}${strava.lastSyncAt ? ` · synchro ${timeAgo(strava.lastSyncAt)}` : ''}` : 'Non connecté'}
+        />
+      </Group>
+      <Group title="Données et application">
+        <Row section="data" icon={<IconSave />} detail="Exporter ou importer en JSON" />
+        <Row section="app" icon={<IconSettings />} detail={`${CONFIG.appName} · installation, version`} />
+      </Group>
     </div>
   );
 }
+
+/** Une rubrique des paramètres, en panneau plein écran (le retour Android le ferme). */
+export function SettingsSheet({ section }: { section: SettingsSection }) {
+  const nav = useNav();
+  const settings = useSettings();
+  const save = (s: AppSettings) => A.saveSettings(s);
+  const setProfile = (pr: Partial<Profile>) => save({ ...settings, profile: { ...settings.profile, ...pr } });
+  let body: ReactNode;
+  switch (section) {
+    case 'program':
+      body = <ProgramSection />;
+      break;
+    case 'availability':
+      body = <AvailabilitySection />;
+      break;
+    case 'goal':
+      body = <GoalSection />;
+      break;
+    case 'profile':
+      body = (
+        <>
+          <Section title="Profil">
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="FTP (W)">
+                <NumberInput value={settings.profile.ftp} onChange={(v) => v && setProfile({ ftp: v })} />
+              </Field>
+              <Field label="FC max (bpm)">
+                <NumberInput value={settings.profile.hrMax} onChange={(v) => v && setProfile({ hrMax: v })} />
+              </Field>
+              <Field label="FC repos (bpm)">
+                <NumberInput value={settings.profile.hrRest} onChange={(v) => v && setProfile({ hrRest: v })} />
+              </Field>
+              <Field label="VO2max">
+                <NumberInput value={settings.profile.vo2max} step={0.1} onChange={(v) => v && setProfile({ vo2max: v })} />
+              </Field>
+            </div>
+          </Section>
+          <PowerZones settings={settings} save={save} />
+          <HrZonesSection settings={settings} save={save} />
+        </>
+      );
+      break;
+    case 'library':
+      body = <Library />;
+      break;
+    case 'strava':
+      body = <StravaSection />;
+      break;
+    case 'data':
+      body = <DataSection />;
+      break;
+    case 'app':
+      body = <AppSection />;
+      break;
+  }
+  return (
+    <Sheet title={TITLES[section]} onClose={nav.close} full>
+      <div className="space-y-3 -mx-1">{body}</div>
+    </Sheet>
+  );
+}
+
+function timeAgo(t: number): string {
+  const m = Math.round((Date.now() - t) / 60000);
+  if (m < 1) return 'à l’instant';
+  if (m < 60) return `il y a ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `il y a ${h} h`;
+  return `il y a ${Math.round(h / 24)} j`;
+}
+
+const formatHoursShort = (h: number) => formatHours(h);
 
 function PowerZones({ settings, save }: { settings: AppSettings; save: (s: AppSettings) => void }) {
   const zones = powerZones(settings.profile.ftp, settings.powerZoneUpperPct);
@@ -223,7 +335,9 @@ function Library() {
         return (
           <div key={k}>
             <div className="text-xs text-muted mb-1">
-              {SPORT_META[k].emoji} {SPORT_META[k].label}
+              <span className="flex items-center gap-1.5">
+                <SportGlyph k={k} size={18} badge={false} /> {SPORT_META[k].label}
+              </span>
             </div>
             <div className="divide-y divide-line rounded-xl bg-raised">
               {list.map((t) => (

@@ -215,3 +215,45 @@ describe('recalcul en milieu de semaine', () => {
     expect(await d.sessions.where('date').equals('2026-11-21').count()).toBe(1);
   });
 });
+
+import { importStravaActivities } from './strava';
+
+describe('import Strava', () => {
+  const sa = (id: number, name: string, sport_type: string, day: string, extra: Record<string, unknown> = {}) => ({
+    id, name, sport_type, start_date_local: `${day}T07:30:00Z`, moving_time: 2700, ...extra,
+  });
+
+  it('associe par jour et discipline, ignore le reste, ne duplique jamais', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    const list = [
+      sa(1, 'Football', 'Workout', '2026-11-09', { moving_time: 4800 }),
+      sa(2, 'Rouvy - Ventoux', 'VirtualRide', '2026-11-14', { trainer: true, moving_time: 3000 }),
+      sa(3, 'Marche', 'Walk', '2026-11-12'),
+      sa(4, 'Footing', 'Run', '2026-11-11'),
+    ];
+    const r = await importStravaActivities(list, d);
+    expect(r).toMatchObject({ fetched: 4, imported: 3, linked: 2 });
+    expect(r.ignored).toEqual([{ title: 'Marche', type: 'Walk', date: '2026-11-12' }]);
+    const foot = (await d.sessions.where('date').equals('2026-11-09').first())!;
+    expect(foot).toMatchObject({ sport: 'football', status: 'done', confirmed: true });
+    // Sortie extérieure de 2h15 prévue samedi, faite en 50 min sur Rouvy : séance faite quand même
+    expect((await d.sessions.where('date').equals('2026-11-14').first())!.status).toBe('done');
+    // Footing un mercredi sans séance de course prévue : activité non prévue
+    const run = (await d.activities.where('externalId').equals('strava:4').first())!;
+    expect(run.plannedSessionId).toBeUndefined();
+    // Deuxième synchronisation : rien de neuf
+    const r2 = await importStravaActivities(list, d);
+    expect(r2).toMatchObject({ imported: 0, updated: 3, linked: 0 });
+    expect(await d.activities.where('source').equals('strava').count()).toBe(3);
+  });
+
+  it('remplace un « Fait » saisi à la main le même jour', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    const foot = (await d.sessions.where('date').equals('2026-11-09').first())!;
+    await markSessionDone(foot.id, d);
+    await importStravaActivities([sa(9, 'Entraînement foot', 'Workout', '2026-11-09')], d);
+    const linked = await d.activities.where('plannedSessionId').equals(foot.id).toArray();
+    expect(linked).toHaveLength(1);
+    expect(linked[0].source).toBe('strava');
+  });
+});

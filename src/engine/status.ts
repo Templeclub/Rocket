@@ -2,7 +2,7 @@
 // Fonctions pures : elles renvoient une nouvelle séance et ne modifient jamais l'entrée.
 // Aucune séance manquée n'est rattrapée automatiquement : rien ici ne déplace une séance sans action explicite.
 
-import { diffDays } from './dates';
+import { addDays, diffDays } from './dates';
 import type { LocalDate, PlannedSession, SessionStatus } from './types';
 
 export const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -108,4 +108,16 @@ export function undoDone(s: PlannedSession, now: number = Date.now()): PlannedSe
 export function displayStatus(s: PlannedSession, today: LocalDate): string {
   if (isMissed(s, today)) return 'non faite';
   return STATUS_LABEL[s.status];
+}
+
+/**
+ * Jours proposés pour reporter une séance : autour de sa date (quelques jours avant, une semaine après),
+ * jamais dans le passé ni le jour même.
+ */
+export function postponeOptions(date: LocalDate, today: LocalDate, before = 3, after = 7): LocalDate[] {
+  const start = diffDays(date, today) - before < 0 ? today : addDays(date, -before);
+  const end = addDays(diffDays(date, today) < 0 ? today : date, after);
+  const out: LocalDate[] = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) if (d !== date) out.push(d);
+  return out;
 }

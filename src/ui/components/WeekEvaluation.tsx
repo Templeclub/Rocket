@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
-import { applyReplanWeek, generateProgram, loadWeekEvaluation, previewReplanWeek, raisePeakAndReplan, setParisDays, type WeekEvaluation } from '../../db/program';
-import { addDays, cap, labelDay, labelWeekday, startOfWeek, weekDays } from '../../engine/dates';
+import { applyReplanWeek, clearParisWeek, generateProgram, loadWeekEvaluation, previewReplanWeek, raisePeakAndReplan, setParisDays, type WeekEvaluation } from '../../db/program';
+import { addDays, cap, isoWeekday, labelDay, labelWeek, labelWeekday, startOfWeek, weekDays } from '../../engine/dates';
 import { KIND_LABEL, PHASE_LABEL, parisDaysOf, toggleParisDay } from '../../engine/planner';
 import { SPORT_META, sportKey } from '../../engine/sports';
 import { isPending } from '../../engine/status';
@@ -11,6 +11,7 @@ import { useNav, useSessionActions, useSettings, useToday } from '../hooks';
 import { IconAlert, IconRefresh } from './Icons';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
+import { SportGlyph } from './SportGlyph';
 
 export function useWeekEvaluation(weekStart: LocalDate): WeekEvaluation | undefined {
   const today = useToday();
@@ -19,6 +20,7 @@ export function useWeekEvaluation(weekStart: LocalDate): WeekEvaluation | undefi
 
 /** Bande des 7 jours : un point par jour pour indiquer la présence à Paris (2 jours par défaut). */
 export function WeekStrip({ weekStart, sessions, onDay }: { weekStart: LocalDate; sessions: PlannedSession[]; onDay: (d: LocalDate) => void }) {
+  const nav = useNav();
   const settings = useSettings();
   const today = useToday();
   const toast = useToast();
@@ -67,9 +69,10 @@ export function WeekStrip({ weekStart, sessions, onDay }: { weekStart: LocalDate
           );
         })}
       </div>
-      <p className="text-[11px] text-muted text-center pb-0.5">
-        {paris.length ? `À Paris : ${paris.map((x) => labelWeekday(x)).join(', ')}` : 'Touche un point pour indiquer tes jours à Paris'} · foot lundi et jeudi hors Paris
-      </p>
+      <button onClick={() => nav.open({ kind: 'paris', weekStart })} className="w-full text-[11px] text-muted text-center pb-0.5">
+        {paris.length ? `À Paris : ${paris.map((x) => labelWeekday(x)).join(', ')}` : 'Touche un point pour tes jours à Paris'} ·{' '}
+        <span className="text-accent font-medium">modifier</span>
+      </button>
     </section>
   );
 }
@@ -213,12 +216,11 @@ export function ReplanSheet({ weekStart }: { weekStart: LocalDate }) {
     added: plan?.add.filter((s) => s.date === d) ?? [],
   }));
   const line = (s: PlannedSession, removed: boolean) => {
-    const m = SPORT_META[sportKey(s.sport, s.environment)];
     return (
       <li key={s.id} className={`flex items-center gap-2 text-sm ${removed ? 'text-muted line-through' : ''}`}>
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
+        <SportGlyph k={sportKey(s.sport, s.environment)} size={20} badge={false} />
         <span className="flex-1 truncate">
-          {m.emoji} {s.title}
+          {s.title}
           {removed && s.confirmed ? ' (confirmée)' : ''}
         </span>
         <span className="tabular-nums">{formatDuration(s.targetDurationMin * 60)}</span>
@@ -263,6 +265,65 @@ export function ReplanSheet({ weekStart }: { weekStart: LocalDate }) {
             </section>
           ))}
         {plan && byDay.every((x) => !x.removed.length && !x.added.length) && <p className="text-sm">Rien à changer.</p>}
+      </div>
+    </Sheet>
+  );
+}
+
+/** Présence à Paris pour une semaine : jours à cocher, un seul jour, aucun, ou la semaine type. */
+export function ParisSheet({ weekStart }: { weekStart: LocalDate }) {
+  const nav = useNav();
+  const settings = useSettings();
+  const toast = useToast();
+  const evaluation = useWeekEvaluation(weekStart);
+  const a = settings.availability;
+  const paris = parisDaysOf(weekStart, a);
+  const set = new Set(paris);
+  const typical = weekDays(weekStart).filter((d) => a.template[isoWeekday(d)]?.paris);
+  const save = async (days: LocalDate[] | undefined, label: string) => {
+    const undo = await setParisDays(weekStart, days ?? []);
+    if (days === undefined) await clearParisWeek(weekStart);
+    toast(label, { label: 'Annuler', run: undo });
+  };
+  const issues = evaluation?.issues.length ?? 0;
+
+  return (
+    <Sheet title="Jours à Paris" onClose={nav.close}>
+      <div className="space-y-4">
+        <p className="text-sm text-muted -mt-1">
+          Semaine du {labelWeek(weekStart)}. À Paris : course uniquement ; pas de foot ces jours-là.
+        </p>
+        <div className="grid grid-cols-7 gap-1.5">
+          {weekDays(weekStart).map((d) => {
+            const on = set.has(d);
+            return (
+              <button
+                key={d}
+                onClick={() => save(on ? paris.filter((x) => x !== d) : [...paris, d].sort(), on ? `${cap(labelWeekday(d))} retiré` : `${cap(labelWeekday(d))} à Paris`)}
+                className={`h-16 rounded-2xl flex flex-col items-center justify-center ${on ? 'bg-ink text-bg' : 'bg-raised'}`}
+                aria-pressed={on}
+                aria-label={`${labelDay(d)} à Paris`}
+              >
+                <span className="text-[11px] uppercase opacity-70">{labelWeekday(d).slice(0, 3)}</span>
+                <span className="font-display text-lg font-semibold">{+d.slice(8)}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => save([], 'Pas de Paris cette semaine')} className="h-10 px-3 rounded-xl bg-raised text-sm">
+            Aucun jour
+          </button>
+          <button onClick={() => save(undefined, 'Semaine type rétablie')} className="h-10 px-3 rounded-xl bg-raised text-sm">
+            Semaine type ({typical.map((d) => labelWeekday(d)).join(', ') || 'aucun'})
+          </button>
+        </div>
+        <p className="text-xs text-muted">Astuce : sur la vue Semaine, un tap sur un point pose 2 jours si la semaine n’a pas encore de Paris, puis ajoute ou retire un jour à chaque tap.</p>
+        {issues > 0 && (
+          <button onClick={() => nav.replace({ kind: 'replan', weekStart })} className="w-full h-12 rounded-xl bg-accent text-accent-ink font-semibold flex items-center justify-center gap-2">
+            <IconRefresh className="w-4 h-4" /> Replanifier la semaine ({issues} point{issues > 1 ? 's' : ''} à revoir)
+          </button>
+        )}
       </div>
     </Sheet>
   );

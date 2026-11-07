@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import { defaultGoals } from '../engine/activity';
 import { type BackupData } from '../engine/backup';
 import { builtinTemplates } from '../engine/library';
-import type { Activity, AppSettings, Goal, PlannedSession, Recommendation, SessionTemplate, WeekPlan } from '../engine/types';
+import type { Activity, AppSettings, Goal, PlannedSession, Recommendation, SessionTemplate, StravaIntegration, WeekPlan } from '../engine/types';
 import { defaultSettings, withDefaults } from '../engine/zones';
 
 export class AsceseDB extends Dexie {
@@ -13,6 +13,8 @@ export class AsceseDB extends Dexie {
   settings!: EntityTable<AppSettings, 'id'>;
   weeks!: EntityTable<WeekPlan, 'weekStart'>;
   recommendations!: EntityTable<Recommendation, 'id'>;
+  /** Connexions externes (Strava). Jamais exportées : elles contiennent des jetons. */
+  integrations!: EntityTable<StravaIntegration, 'id'>;
 
   // Le nom de la base reste « desertusplan » : le changer effacerait les données déjà saisies.
   constructor(name = 'desertusplan') {
@@ -28,6 +30,10 @@ export class AsceseDB extends Dexie {
       sessions: 'id, date, status, sport, origin',
       weeks: 'weekStart',
       recommendations: 'id, weekStart, status',
+    });
+    this.version(3).stores({
+      activities: 'id, date, sport, plannedSessionId, externalId, source',
+      integrations: 'id',
     });
   }
 }

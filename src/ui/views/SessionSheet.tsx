@@ -16,6 +16,7 @@ import { IconMore } from '../components/Icons';
 import { Sheet } from '../components/Sheet';
 import { useToast } from '../components/Toast';
 import { useNav, useSessionActions, useSettings } from '../hooks';
+import { SportGlyph } from '../components/SportGlyph';
 
 const btn = 'h-11 rounded-xl px-4 font-medium';
 const primary = `${btn} bg-accent text-accent-ink flex-1`;
@@ -88,7 +89,8 @@ export function SessionSheet({ id }: { id: string }) {
     <Sheet
       title={
         <span>
-          {meta.emoji} {session.title}
+          <SportGlyph k={sportKey(session.sport, session.environment)} size={30} className="mr-2 align-middle" />
+          {session.title}
         </span>
       }
       onClose={nav.close}
@@ -147,7 +149,7 @@ export function SessionSheet({ id }: { id: string }) {
             }}
           >
             <span className="text-xl" aria-hidden="true">
-              {SPORT_META[sportKey(session.alternative.sport, session.alternative.environment)].emoji}
+              <SportGlyph k={sportKey(session.alternative.sport, session.alternative.environment)} size={32} />
             </span>
             <span className="flex-1">
               <span className="block text-sm font-medium">Basculer sur la variante</span>

@@ -56,6 +56,15 @@
   --sp-swim: #1c86e0;
   --sp-football: #d43f86;
   --sp-enduro: #8a8780;
+  /* Phases du programme : rampe chaude qui s'intensifie vers le spécifique, affûtage apaisé. */
+  --ph-base: #d9c7aa;
+  --ph-development: #e9ad7d;
+  --ph-specific: #d27a43;
+  --ph-taper: #8fb58a;
+  --ph-base-soft: #f2ebdf;
+  --ph-development-soft: #f8e3cf;
+  --ph-specific-soft: #f5d3bb;
+  --ph-taper-soft: #e1ecdd;
   color-scheme: light;
 }
 
@@ -79,6 +88,14 @@
     --sp-swim: #2a8ad6;
     --sp-football: #d4458c;
     --sp-enduro: #8d8b85;
+    --ph-base: #75664f;
+    --ph-development: #9c6a43;
+    --ph-specific: #c36d37;
+    --ph-taper: #5f8a5b;
+    --ph-base-soft: #26231f;
+    --ph-development-soft: #2e241b;
+    --ph-specific-soft: #36231a;
+    --ph-taper-soft: #1f2820;
     color-scheme: dark;
   }
 }

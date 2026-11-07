@@ -4,12 +4,13 @@ import { db } from '../../db/db';
 import { CONFIG } from '../../engine/config';
 import { addDays, cap, diffDays, labelDay, labelWeekday } from '../../engine/dates';
 import { SPORT_KEYS, SPORT_META, sportKey } from '../../engine/sports';
-import { isPending } from '../../engine/status';
+import { isPending, postponeOptions } from '../../engine/status';
 import type { LocalDate, SportKey } from '../../engine/types';
 import { formatDuration, formatHours } from '../../engine/zones';
 import { useNav, useSessionActions } from '../hooks';
 import { IconCheck, IconOpen, IconStar, IconX } from './Icons';
 import { Sheet } from './Sheet';
+import { SportGlyph } from './SportGlyph';
 
 function useDayLoads(from: LocalDate, days: number) {
   return (
@@ -52,25 +53,27 @@ export function ActionsSheet({ id }: { id: string }) {
   const act = useSessionActions();
   const session = useLiveQuery(() => db.sessions.get(id), [id]);
   const start = act.today;
-  const n = CONFIG.ui.postponeDaysOffered + 1;
-  const loads = useDayLoads(start, n + 1);
+  const sessionDate = useLiveQuery(async () => (await db.sessions.get(id))?.date, [id]);
+  // Jours proposés autour de la date de la séance (jamais dans le passé).
+  const options = sessionDate ? postponeOptions(sessionDate, start, 3, CONFIG.ui.postponeDaysOffered) : [];
+  const loads = useDayLoads(options[0] ?? start, options.length + 2);
   const others = useLiveQuery(() => db.sessions.where('date').between(start, addDays(start, 14), true, false).toArray(), [start]);
   if (!session) return null;
-  const meta = SPORT_META[sportKey(session.sport, session.environment)];
   const pending = isPending(session);
   const close = (fn: () => void) => () => {
     nav.close();
     fn();
   };
 
-  const days = Array.from({ length: n + 1 }, (_, i) => addDays(start, i)).filter((d) => d !== session.date);
+  const days = options;
+  const pivot = days.findIndex((d) => d > session.date);
   const swaps = (others ?? []).filter((s) => s.id !== id && isPending(s) && s.date !== session.date).sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <Sheet
       title={
         <span className="flex items-center gap-2">
-          <span>{meta.emoji}</span>
+          <SportGlyph k={sportKey(session.sport, session.environment)} size={28} />
           <span className="truncate">{session.title}</span>
         </span>
       }
@@ -94,7 +97,7 @@ export function ActionsSheet({ id }: { id: string }) {
           )}
           {pending && session.alternative && (
             <Action label={session.alternative.sport === 'swim' ? 'Natation' : session.alternative.environment === 'indoor' ? 'Home-trainer' : 'Extérieur'} onClick={close(() => act.switchVariant(id, session.alternative!.title))}>
-              <span className="text-lg leading-none">{SPORT_META[sportKey(session.alternative.sport, session.alternative.environment)].emoji}</span>
+              <SportGlyph k={sportKey(session.alternative.sport, session.alternative.environment)} size={26} badge={false} />
             </Action>
           )}
           {pending && (
@@ -116,10 +119,18 @@ export function ActionsSheet({ id }: { id: string }) {
           <section>
             <h3 className="text-sm font-semibold mb-2">Reporter au</h3>
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-              {days.map((d) => {
+              {days.map((d, i) => {
                 const l = loads.get(d);
                 const rel = diffDays(d, start);
-                return (
+                const marker =
+                  i === pivot ? (
+                    <div key="pivot" className="shrink-0 w-[3.4rem] rounded-2xl border-2 border-accent/60 p-2 text-center" aria-label="Date actuelle de la séance">
+                      <div className="text-[11px] text-accent">Prévue</div>
+                      <div className="font-display text-xl font-semibold leading-tight text-accent">{+session.date.slice(8)}</div>
+                    </div>
+                  ) : null;
+                return [
+                  marker,
                   <button
                     key={d}
                     onClick={close(() => act.postpone(id, d))}
@@ -132,8 +143,8 @@ export function ActionsSheet({ id }: { id: string }) {
                       {l ? l.sports.slice(0, 3).map((k: SportKey, i: number) => <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: SPORT_META[k].color }} />) : null}
                     </div>
                     <div className="text-[10px] text-muted mt-0.5">{l ? formatHours(l.h) : 'libre'}</div>
-                  </button>
-                );
+                  </button>,
+                ];
               })}
               <label className="shrink-0 w-[4.6rem] rounded-2xl border border-dashed border-line p-2 text-center text-[11px] text-muted flex flex-col items-center justify-center relative">
                 Autre date
@@ -151,12 +162,12 @@ export function ActionsSheet({ id }: { id: string }) {
             ) : (
               <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
                 {swaps.map((s) => {
-                  const m = SPORT_META[sportKey(s.sport, s.environment)];
                   return (
                     <button key={s.id} onClick={close(() => act.swap(id, s.id))} className="shrink-0 w-36 rounded-2xl bg-raised p-2.5 text-left active:scale-95">
                       <div className="text-[11px] text-muted">{cap(labelDay(s.date))}</div>
-                      <div className="text-sm font-medium truncate">
-                        {m.emoji} {s.title}
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <SportGlyph k={sportKey(s.sport, s.environment)} size={18} badge={false} />
+                        <span className="truncate">{s.title}</span>
                       </div>
                       <div className="text-[11px] text-muted">{formatDuration(s.targetDurationMin * 60)}</div>
                     </button>
@@ -211,7 +222,14 @@ export function CreateSheet({ date }: { date: LocalDate }) {
             onClick={() => setFilter(k)}
             className={`shrink-0 h-9 px-3 rounded-full text-sm ${filter === k ? 'bg-ink text-bg' : 'bg-raised'}`}
           >
-            {k === 'all' ? 'Tous' : `${SPORT_META[k].emoji} ${SPORT_META[k].short}`}
+            {k === 'all' ? (
+              'Tous'
+            ) : (
+              <span className="flex items-center gap-1">
+                <SportGlyph k={k} size={18} badge={false} />
+                {SPORT_META[k].short}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -227,10 +245,9 @@ export function CreateSheet({ date }: { date: LocalDate }) {
               }}
               className="w-full rounded-2xl bg-raised p-3 text-left flex items-center gap-3 active:scale-[0.99]"
             >
-              <span className="w-1 self-stretch rounded" style={{ background: m.color }} />
+              <SportGlyph k={sportKey(t.sport, t.environment)} size={36} />
               <span className="flex-1 min-w-0">
                 <span className="flex items-center gap-1.5 font-medium">
-                  <span>{m.emoji}</span>
                   <span className="truncate">{t.title}</span>
                   {t.priority === 'key' && (
                     <span className="text-accent">

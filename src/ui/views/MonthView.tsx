@@ -9,6 +9,7 @@ import { isMissed } from '../../engine/status';
 import type { Activity, LocalDate, PlannedSession, SportKey } from '../../engine/types';
 import { formatHours } from '../../engine/zones';
 import { Segmented } from '../components/Form';
+import { PhaseTimeline, phaseColor, phaseSoft } from '../components/Phases';
 import { useNav, useToday } from '../hooks';
 
 const WD = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -76,6 +77,7 @@ export function MonthView({ monthStart }: { monthStart: LocalDate }) {
 
   return (
     <div className="space-y-4">
+      <PhaseTimeline current={plans.find((p) => p.weekStart >= monthStart)?.weekStart ?? monthStart} onWeek={(w) => nav.goWeekOf(w)} />
       <Segmented
         value={mode}
         onChange={setMode}
@@ -90,8 +92,19 @@ export function MonthView({ monthStart }: { monthStart: LocalDate }) {
             <div key={i}>{w}</div>
           ))}
         </div>
-        {weeks.map((w) => (
-          <div key={w} className="grid grid-cols-7 gap-0.5">
+        {weeks.map((w, wi) => {
+          const p = plans.find((x) => x.weekStart === w);
+          const prev = wi > 0 ? plans.find((x) => x.weekStart === weeks[wi - 1]) : undefined;
+          const showLabel = p && (!prev || prev.phase !== p.phase);
+          return (
+          <div key={w}>
+            {showLabel && (
+              <div className="flex items-center gap-1.5 px-1 pt-1.5 pb-0.5 text-[11px] font-semibold">
+                <span className="w-2 h-2 rounded-full" style={{ background: phaseColor(p.phase) }} />
+                {PHASE_LABEL[p.phase]}
+              </div>
+            )}
+          <div className="grid grid-cols-7 gap-0.5 rounded-xl" style={{ background: p ? phaseSoft(p.phase) : undefined }}>
             {weekDays(w).map((d) => {
               const inMonth = d >= monthStart && d < nextMonth;
               const ds = sessions.filter((s) => s.date === d);
@@ -138,7 +151,9 @@ export function MonthView({ monthStart }: { monthStart: LocalDate }) {
               );
             })}
           </div>
-        ))}
+          </div>
+          );
+        })}
         {mode === 'sports' ? (
           <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs mt-3 px-1" aria-label="Légende des disciplines">
             {SPORT_KEYS.map((k) => (

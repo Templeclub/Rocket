@@ -89,21 +89,15 @@ export function footballDaysOf(weekStart: LocalDate, a: Availability): LocalDate
 
 /**
  * Présence à Paris après un tap sur le point d'un jour :
- * - jour déjà à Paris → retiré (présence plus courte) ;
- * - jour collé à la présence existante → ajouté (présence plus longue) ;
- * - sinon → nouvelle présence de N jours (2 par défaut) à partir de ce jour, dans la semaine.
+ * - semaine sans Paris → N jours (2 par défaut) à partir du jour touché ;
+ * - jour à Paris → retiré ;
+ * - autre jour → ajouté seul (on compose ainsi 1, 2, 3 jours… ou des jours non consécutifs).
  */
 export function toggleParisDay(current: LocalDate[], day: LocalDate, weekStart: LocalDate, length: number = CONFIG.availability.parisDefaultLength): LocalDate[] {
-  const set = new Set(current);
-  if (set.has(day)) {
-    set.delete(day);
-    return [...set].sort();
-  }
-  const adjacent = current.some((d) => Math.abs(diffDays(d, day)) === 1);
-  if (adjacent) return [...current, day].sort();
+  if (current.includes(day)) return current.filter((d) => d !== day).sort();
+  if (current.length) return [...current, day].sort();
   const end = addDays(weekStart, 6);
-  const next = Array.from({ length }, (_, i) => addDays(day, i)).filter((d) => d <= end);
-  return next;
+  return Array.from({ length }, (_, i) => addDays(day, i)).filter((d) => d <= end);
 }
 
 function countDays(weekStart: LocalDate, a: Availability, pred: (k: ExceptionKind | null, wd: number) => boolean): number {

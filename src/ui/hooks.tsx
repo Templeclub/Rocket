@@ -18,7 +18,9 @@ export type Overlay =
   | { kind: 'swap'; id: string }
   | { kind: 'review'; weekStart: LocalDate }
   | { kind: 'actions'; id: string }
-  | { kind: 'replan'; weekStart: LocalDate };
+  | { kind: 'replan'; weekStart: LocalDate }
+  | { kind: 'paris'; weekStart: LocalDate }
+  | { kind: 'settings'; section: string };
 
 export interface Nav {
   open: (o: Overlay) => void;

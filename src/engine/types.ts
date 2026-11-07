@@ -96,6 +96,33 @@ export interface Activity {
   externalId?: string;
   plannedSessionId?: string;
   notes?: string;
+  /** Titre de l'activité (Strava). */
+  title?: string;
+}
+
+/** Connexion à Strava (stockée sur le téléphone, jamais exportée). */
+export interface StravaIntegration {
+  id: 'strava';
+  accessToken: string;
+  refreshToken: string;
+  /** Expiration du jeton d'accès (secondes depuis 1970). */
+  expiresAt: number;
+  scope: string;
+  athleteName?: string;
+  connectedAt: number;
+  lastSyncAt?: number;
+  lastReport?: SyncReport;
+}
+
+export interface SyncReport {
+  at: number;
+  fetched: number;
+  imported: number;
+  updated: number;
+  linked: number;
+  /** Activités ignorées (discipline non reconnue), avec titre et type. */
+  ignored: { title: string; type: string; date: LocalDate }[];
+  error?: string;
 }
 
 export interface Goal {

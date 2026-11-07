@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { SPORT_KEYS, SPORT_META } from '../../engine/sports';
 import type { SportKey } from '../../engine/types';
 import { formatDuration, parseDuration } from '../../engine/zones';
+import { SportGlyph } from './SportGlyph';
 
 export const inputCls = 'w-full h-11 rounded-lg bg-raised px-3 outline-none focus:ring-2 focus:ring-accent';
 
@@ -125,7 +126,7 @@ export function SportPicker({ value, onChange }: { value: SportKey; onChange: (k
             value === k ? 'ring-2 ring-accent bg-surface font-medium' : 'bg-raised'
           }`}
         >
-          <span>{SPORT_META[k].emoji}</span>
+          <SportGlyph k={k} size={20} badge={false} />
           {SPORT_META[k].short}
         </button>
       ))}

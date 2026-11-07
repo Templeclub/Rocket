@@ -27,11 +27,12 @@ describe('présence à Paris depuis la vue semaine', () => {
   it('un tap sur un jour à Paris le retire (présence plus courte)', () => {
     expect(toggleParisDay(['2026-11-17', '2026-11-18'], '2026-11-18', W)).toEqual(['2026-11-17']);
   });
-  it('un tap sur un jour voisin l’ajoute (présence plus longue)', () => {
+  it('un tap sur un autre jour l’ajoute seul (présence plus longue ou jours séparés)', () => {
     expect(toggleParisDay(['2026-11-17', '2026-11-18'], '2026-11-19', W)).toEqual(['2026-11-17', '2026-11-18', '2026-11-19']);
+    expect(toggleParisDay(['2026-11-17'], '2026-11-20', W)).toEqual(['2026-11-17', '2026-11-20']);
   });
-  it('un tap ailleurs déplace la présence', () => {
-    expect(toggleParisDay(['2026-11-17', '2026-11-18'], '2026-11-20', W)).toEqual(['2026-11-20', '2026-11-21']);
+  it('un seul jour à Paris : poser 2 jours puis retirer le second', () => {
+    expect(toggleParisDay(toggleParisDay([], '2026-11-19', W), '2026-11-20', W)).toEqual(['2026-11-19']);
   });
 });
 

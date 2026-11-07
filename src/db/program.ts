@@ -251,3 +251,11 @@ export async function raisePeakAndReplan(peak: number, fromWeek: LocalDate, toda
   await d.settings.put({ ...s, volume: { ...s.volume, peakWeeklyHours: peak } });
   return generateProgram({ fromWeek, today }, d);
 }
+
+/** Rétablit pour cette semaine les jours à Paris de la semaine type. */
+export async function clearParisWeek(weekStart: LocalDate, d: AsceseDB = db): Promise<void> {
+  const s = await getSettings(d);
+  const parisByWeek = { ...s.availability.parisByWeek };
+  delete parisByWeek[weekStart];
+  await d.settings.put({ ...s, availability: { ...s.availability, parisByWeek } });
+}

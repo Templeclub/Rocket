@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  postponeOptions,
   canTransition,
   cancel,
   displayStatus,
@@ -160,5 +161,23 @@ describe('séance manquée : jamais rattrapée automatiquement', () => {
   it('une séance faite ou annulée n’est jamais manquée', () => {
     expect(isMissed(s({ date: '2026-11-07', status: 'done' }), TODAY)).toBe(false);
     expect(isMissed(s({ date: '2026-11-07', status: 'cancelled' }), TODAY)).toBe(false);
+  });
+});
+
+describe('jours proposés pour reporter', () => {
+  it('autour de la date de la séance, pas à partir d’aujourd’hui', () => {
+    const o = postponeOptions('2026-11-20', '2026-11-09');
+    expect(o[0]).toBe('2026-11-17');
+    expect(o).not.toContain('2026-11-20');
+    expect(o.at(-1)).toBe('2026-11-27');
+  });
+  it('jamais dans le passé', () => {
+    const o = postponeOptions('2026-11-10', '2026-11-09');
+    expect(o[0]).toBe('2026-11-09');
+  });
+  it('séance manquée : à partir d’aujourd’hui', () => {
+    const o = postponeOptions('2026-11-05', '2026-11-09');
+    expect(o[0]).toBe('2026-11-09');
+    expect(o.at(-1)).toBe('2026-11-16');
   });
 });

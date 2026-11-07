@@ -3,14 +3,15 @@ import { addDays, addMonths, cap, labelMonth, labelWeek, startOfMonth, startOfWe
 import type { LocalDate } from '../engine/types';
 import { IconLeft, IconMonth, IconRight, IconSettings, IconWeek } from './components/Icons';
 import { ActionsSheet, CreateSheet } from './components/QuickSheets';
-import { ReplanSheet } from './components/WeekEvaluation';
+import { ParisSheet, ReplanSheet } from './components/WeekEvaluation';
 import { ToastProvider } from './components/Toast';
+import { StravaAutoSync } from './StravaAutoSync';
 import { NavCtx, type Nav, type Overlay } from './hooks';
 import { MonthView } from './views/MonthView';
 import { WeekView } from './views/WeekView';
 import { ActivitySheet, NewSessionSheet, SessionSheet, TemplateSheet } from './views/SessionSheet';
 import { ReviewSheet } from './views/ReviewSheet';
-import { SettingsView } from './views/SettingsView';
+import { SettingsSheet, SettingsView, type SettingsSection } from './views/SettingsView';
 
 type View = 'week' | 'month' | 'settings';
 
@@ -32,6 +33,10 @@ function OverlayView({ o }: { o: Overlay }) {
       return <ActionsSheet id={o.id} />;
     case 'replan':
       return <ReplanSheet weekStart={o.weekStart} />;
+    case 'paris':
+      return <ParisSheet weekStart={o.weekStart} />;
+    case 'settings':
+      return <SettingsSheet section={o.section as SettingsSection} />;
     case 'review':
       return <ReviewSheet weekStart={o.weekStart} />;
   }
@@ -90,6 +95,7 @@ export function App() {
   return (
     <NavCtx.Provider value={nav}>
       <ToastProvider>
+        <StravaAutoSync />
         <div className="min-h-dvh max-w-xl mx-auto flex flex-col">
           <header className="sticky top-0 z-20 bg-bg/90 backdrop-blur-md px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-end gap-2">
             <h1 className="font-display text-2xl font-semibold tracking-tight">{cap(title)}</h1>

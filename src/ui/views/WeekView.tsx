@@ -5,19 +5,24 @@ import { addDays, cap, diffDays, labelDay, weekDays } from '../../engine/dates';
 import { parisDaysOf } from '../../engine/planner';
 import { SPORT_KEYS, SPORT_META } from '../../engine/sports';
 import { summarize, type SportHours } from '../../engine/stats';
-import type { Activity, LocalDate, PlannedSession } from '../../engine/types';
+import type { Activity, LocalDate, PlannedSession, SportKey } from '../../engine/types';
 import { formatHours } from '../../engine/zones';
 import { IconPlus } from '../components/Icons';
+import { PhaseTimeline } from '../components/Phases';
 import { ProgramEmptyCard, ReminderBanner } from '../components/ProgramCards';
 import { ActivityCard, SessionCard } from '../components/SessionCard';
 import { useWeekEvaluation, WeekEvaluationCard, WeekStrip } from '../components/WeekEvaluation';
 import { useNav, useSettings, useToday } from '../hooks';
+import { SportGlyph } from '../components/SportGlyph';
 
-function Bar({ h, label, color }: { h: SportHours; label: string; color: string }) {
+function Bar({ h, label, color, k }: { h: SportHours; label: string; color: string; k: SportKey }) {
   const max = Math.max(h.plannedH, h.doneH, 0.01);
   return (
     <div className="flex items-center gap-2 text-[13px]">
-      <span className="w-20 shrink-0 truncate text-muted">{label}</span>
+      <span className="w-24 shrink-0 truncate text-muted flex items-center gap-1.5">
+        <SportGlyph k={k} size={18} badge={false} />
+        {label}
+      </span>
       <div className="flex-1 h-1.5 rounded-full bg-raised overflow-hidden relative">
         <div className="absolute inset-y-0 left-0 rounded-full opacity-30" style={{ width: `${(h.plannedH / max) * 100}%`, background: color }} />
         <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${(h.doneH / max) * 100}%`, background: color }} />
@@ -43,7 +48,7 @@ export function WeekSummaryPanel({ sessions, activities, weekStart }: { sessions
         {sum.completionRate !== null && <span className="ml-auto text-xs text-muted tabular-nums">{Math.round(sum.completionRate * 100)} % des séances</span>}
       </div>
       {rows.map((k) => (
-        <Bar key={k} h={sum.bySport[k]} label={`${SPORT_META[k].emoji} ${SPORT_META[k].short}`} color={SPORT_META[k].color} />
+        <Bar key={k} k={k} h={sum.bySport[k]} label={SPORT_META[k].short} color={SPORT_META[k].color} />
       ))}
     </section>
   );
@@ -83,6 +88,7 @@ export function WeekView({ weekStart, focusDate }: { weekStart: LocalDate; focus
       )}
       {weekCount === 0 && <ProgramEmptyCard />}
       <ReminderBanner />
+      <PhaseTimeline current={weekStart} onWeek={(w) => nav.goWeekOf(w)} compact />
       <WeekStrip weekStart={weekStart} sessions={sessions} onDay={scrollTo} />
       <WeekEvaluationCard weekStart={weekStart} sessions={sessions} evaluation={evaluation} />
       <WeekSummaryPanel sessions={sessions} activities={activities} weekStart={weekStart} />
