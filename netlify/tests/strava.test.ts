@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error module JavaScript de la fonction Netlify
-import { handle } from './strava.mjs';
+import { handle } from '../functions/strava.mjs';
 
 const env = { id: '12345', secret: 's3cr3t' };
 const req = (action: string, body?: unknown) =>
