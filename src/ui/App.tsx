@@ -8,6 +8,8 @@ import { ToastProvider } from './components/Toast';
 import { StravaAutoSync } from './StravaAutoSync';
 import { CloudAutoBackup } from './CloudAutoBackup';
 import { ThemeSync } from './ThemeSync';
+import { CelebrationLayer, GameWatcher } from './Celebrations';
+import { ProgressSheet } from './components/Progress';
 import { NavCtx, type Nav, type Overlay } from './hooks';
 import { MonthView } from './views/MonthView';
 import { WeekView } from './views/WeekView';
@@ -35,6 +37,8 @@ function OverlayView({ o }: { o: Overlay }) {
       return <ActionsSheet id={o.id} />;
     case 'replan':
       return <ReplanSheet weekStart={o.weekStart} />;
+    case 'progress':
+      return <ProgressSheet />;
     case 'paris':
       return <ParisSheet weekStart={o.weekStart} />;
     case 'settings':
@@ -100,6 +104,8 @@ export function App() {
         <StravaAutoSync />
         <CloudAutoBackup />
         <ThemeSync />
+        <GameWatcher />
+        <CelebrationLayer />
         <div className="min-h-dvh max-w-xl mx-auto flex flex-col">
           <header className="sticky top-0 z-20 bg-bg/90 backdrop-blur-md px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-end gap-2">
             <h1 className="font-display text-2xl font-semibold tracking-tight">{cap(title)}</h1>

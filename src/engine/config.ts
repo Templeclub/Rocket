@@ -104,6 +104,45 @@ export const CONFIG = {
     behindWeeks: 2,
   },
 
+  /** Motivation : jauge de préparation, semaines tenues, niveaux. Récompense la régularité, jamais le surplus. */
+  gamification: {
+    /** Ce que le Desertus demande (cibles de la jauge « Prêt à … % »). */
+    readiness: {
+      weeklyEnduranceH: 8,
+      longestRideMin: 360,
+      backToBackDays: 3,
+      /** Une journée d'enchaînement compte si la sortie fait au moins N minutes. */
+      backToBackMinMin: 120,
+      bigClimbM: 1500,
+      /** Poids des composantes (total 100). */
+      weights: { rhythm: 25, longest: 20, backToBack: 15, specific: 15, consistency: 25 },
+    },
+    /** Semaine tenue. */
+    held: {
+      /** Charge ou bloc : au moins ce ratio des heures d'endurance prévues. */
+      loadMinRatio: 0.6,
+      /** Allégée, affûtage : rester entre ces ratios (respecter le repos compte). */
+      lightMinRatio: 0.4,
+      lightMaxRatio: 1.1,
+      /** Jokers par mois civil. */
+      jokersPerMonth: 1,
+    },
+    /** Points : durée (min) × effort perçu, plafonnés à la charge prévue de la semaine. */
+    xp: {
+      defaultRpe: { gravel: 4, run: 5, swim: 4, football: 7, enduro: 6 } as Record<string, number>,
+      heldWeekBonus: 150,
+      /** Seuils des niveaux (le dernier, Finisher, s'obtient en terminant l'objectif). */
+      levels: [
+        { name: 'Novice', xp: 0 },
+        { name: 'Pèlerin', xp: 5000 },
+        { name: 'Nomade', xp: 15000 },
+        { name: 'Méhariste', xp: 28000 },
+        { name: 'Ascète du désert', xp: 42000 },
+      ],
+      finisher: 'Finisher',
+    },
+  },
+
   /** Suivi du programme (évaluation en haut de chaque semaine). */
   progress: {
     /** Semaines terminées prises en compte. */

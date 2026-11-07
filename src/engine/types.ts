@@ -188,6 +188,10 @@ export interface AppSettings {
   volume: VolumeSettings;
   /** Affichage : automatique, clair ou sombre. */
   theme?: 'auto' | 'light' | 'dark';
+  /** Vibrations et animations de réussite (activées par défaut). */
+  feedback?: boolean;
+  /** Dernier état de motivation déjà fêté (pour ne célébrer qu'une fois). */
+  gameSeen?: { level: number; held: number };
   /** Bornes hautes des zones de puissance, en % de la FTP (la dernière zone est ouverte). */
   powerZoneUpperPct: number[];
   /** Bornes des zones de FC, en % de la FC max : [bas Z1, haut Z1, haut Z2, …, haut Z5]. */

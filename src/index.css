@@ -193,6 +193,51 @@ h1, h2, h3, .font-display {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
+/* Célébrations */
+.celebrate-burst {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  background-image: linear-gradient(120deg, var(--c-sport-1), var(--c-sport-2));
+  animation: burst-pop 900ms cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+  box-shadow: 0 12px 40px rgb(224 30 79 / 0.35);
+}
+.celebrate-burst > span {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--c-sport-1);
+  top: calc(50% - 4px);
+  left: calc(50% - 4px);
+  animation: burst-dot 900ms ease-out forwards;
+}
+.celebrate-burst > span:nth-child(even) { background: var(--c-sport-2); }
+@keyframes burst-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  25% { transform: scale(1.08); opacity: 1; }
+  70% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+@keyframes burst-dot {
+  0% { opacity: 0; translate: 0 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; translate: 0 -34px; }
+}
+.celebrate-card { animation: card-in 2800ms ease-out forwards; }
+@keyframes card-in {
+  0% { transform: translateY(-20px) scale(0.96); opacity: 0; }
+  10% { transform: translateY(0) scale(1); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(-10px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celebrate-card { animation: none; }
+}
+
 /* Dégradé sportif : actions principales, bandeau d'objectif, onglet actif. */
 .bg-sport {
   background-image: linear-gradient(120deg, var(--c-sport-1) 0%, var(--c-sport-2) 100%);

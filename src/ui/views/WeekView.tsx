@@ -9,6 +9,7 @@ import type { Activity, LocalDate, PlannedSession, SportKey } from '../../engine
 import { formatHours } from '../../engine/zones';
 import { IconPlus } from '../components/Icons';
 import { GoalHero } from '../components/GoalHero';
+import { ProgressStrip } from '../components/Progress';
 import { PhaseTimeline } from '../components/Phases';
 import { ProgramEmptyCard, ReminderBanner } from '../components/ProgramCards';
 import { ActivityCard, SessionCard } from '../components/SessionCard';
@@ -82,6 +83,7 @@ export function WeekView({ weekStart, focusDate }: { weekStart: LocalDate; focus
   return (
     <div className="space-y-3">
       <GoalHero weekStart={weekStart} sessions={sessions} activities={activities} />
+      <ProgressStrip />
       {weekCount === 0 && <ProgramEmptyCard />}
       <ReminderBanner />
       <PhaseTimeline current={weekStart} onWeek={(w) => nav.goWeekOf(w)} compact />

@@ -458,6 +458,18 @@ function AppSection() {
         ]}
       />
       <p className="text-xs text-muted">Automatique suit le réglage jour/nuit du téléphone.</p>
+      <label className="flex items-center justify-between gap-3 pt-1">
+        <span>
+          <span className="block text-sm font-medium">Vibrations et animations</span>
+          <span className="block text-xs text-muted">Quand une séance est faite, une semaine tenue, un niveau atteint.</span>
+        </span>
+        <input
+          type="checkbox"
+          className="w-6 h-6 accent-[var(--c-accent)]"
+          checked={settings.feedback !== false}
+          onChange={(e) => A.saveSettings({ ...settings, feedback: e.target.checked })}
+        />
+      </label>
     </Section>
     <Section title="Application">
       {standalone ? (
