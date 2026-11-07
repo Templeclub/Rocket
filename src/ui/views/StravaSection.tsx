@@ -62,7 +62,7 @@ export function StravaSection() {
             {integ.lastSyncAt ? new Date(integ.lastSyncAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'jamais'}.
           </p>
           <div className="flex gap-2">
-            <button disabled={busy} onClick={() => sync()} className="flex-1 h-11 rounded-xl bg-accent text-accent-ink font-medium flex items-center justify-center gap-2">
+            <button disabled={busy} onClick={() => sync()} className="flex-1 h-11 rounded-xl bg-sport font-medium flex items-center justify-center gap-2">
               <IconRefresh className={`w-4 h-4 ${busy ? 'animate-spin' : ''}`} /> {busy ? 'Synchronisation…' : 'Synchroniser'}
             </button>
             <button disabled={busy} onClick={() => sync(true)} className="h-11 px-3 rounded-xl bg-raised text-sm">

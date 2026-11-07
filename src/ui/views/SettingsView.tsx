@@ -9,7 +9,9 @@ import { builtinTemplates } from '../../engine/library';
 import { SPORT_KEYS, SPORT_META, sportKey } from '../../engine/sports';
 import type { AppSettings, Goal, Profile } from '../../engine/types';
 import { formatDuration, formatHours, hrZones, powerZones } from '../../engine/zones';
-import { Field, inputCls, NumberInput } from '../components/Form';
+import { Field, inputCls, NumberInput, Segmented } from '../components/Form';
+import { applyTheme } from '../theme';
+import { CloudSection } from './CloudSection';
 import { IconCalendarSpark, IconFlag, IconPin, IconPlus, IconPulse, IconRight, IconSave, IconSettings, IconStack, IconStar, IconLink } from '../components/Icons';
 import { Sheet } from '../components/Sheet';
 import { StravaSection } from './StravaSection';
@@ -74,6 +76,7 @@ export function SettingsView() {
   const goal = useLiveQuery(async () => (await db.goals.toArray()).find((g) => g.kind === 'main'), []);
   const templates = useLiveQuery(() => db.templates.count(), []) ?? 0;
   const strava = useLiveQuery(() => db.integrations.get('strava'), []);
+  const cloud = useLiveQuery(() => db.cloud.get('cloud'), []);
   const p = settings.profile;
   const a = settings.availability;
   const days = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
@@ -97,8 +100,8 @@ export function SettingsView() {
         />
       </Group>
       <Group title="Données et application">
-        <Row section="data" icon={<IconSave />} detail="Exporter ou importer en JSON" />
-        <Row section="app" icon={<IconSettings />} detail={`${CONFIG.appName} · installation, version`} />
+        <Row section="data" icon={<IconSave />} detail={cloud ? `En ligne · ${cloud.lastBackupAt ? timeAgo(cloud.lastBackupAt) : 'pas encore envoyée'}` : 'Sauvegarde en ligne désactivée · export JSON'} />
+        <Row section="app" icon={<IconSettings />} detail={`Thème ${({ auto: 'automatique', light: 'jour', dark: 'nuit' } as const)[settings.theme ?? 'auto']} · installation`} />
       </Group>
     </div>
   );
@@ -152,7 +155,12 @@ export function SettingsSheet({ section }: { section: SettingsSection }) {
       body = <StravaSection />;
       break;
     case 'data':
-      body = <DataSection />;
+      body = (
+        <>
+          <CloudSection />
+          <DataSection />
+        </>
+      );
       break;
     case 'app':
       body = <AppSection />;
@@ -403,12 +411,12 @@ function DataSection() {
   };
 
   return (
-    <Section title="Données">
+    <Section title="Fichier de sauvegarde">
       <p className="text-sm text-muted">
-        Stockées sur ce téléphone uniquement{counts ? ` · ${counts.s} séances, ${counts.a} activités` : ''}. Exporte régulièrement.
+        Copie sur ce téléphone{counts ? ` : ${counts.s} séances, ${counts.a} activités` : ''}. Export et import d’un fichier JSON (sans les connexions Strava ni la phrase secrète).
       </p>
       <div className="flex gap-2">
-        <button className="flex-1 h-11 rounded-xl bg-accent text-accent-ink font-medium" onClick={doExport}>
+        <button className="flex-1 h-11 rounded-xl bg-sport font-medium" onClick={doExport}>
           Exporter (JSON)
         </button>
         <button className="flex-1 h-11 rounded-xl bg-raised font-medium" onClick={() => fileRef.current?.click()}>
@@ -432,19 +440,37 @@ function DataSection() {
 
 function AppSection() {
   const install = useInstallPrompt();
+  const settings = useSettings();
   const standalone = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
   return (
+    <>
+    <Section title="Affichage">
+      <Segmented
+        value={settings.theme ?? 'auto'}
+        onChange={(theme) => {
+          applyTheme(theme);
+          A.saveSettings({ ...settings, theme });
+        }}
+        options={[
+          { value: 'auto', label: 'Automatique' },
+          { value: 'light', label: 'Jour' },
+          { value: 'dark', label: 'Nuit' },
+        ]}
+      />
+      <p className="text-xs text-muted">Automatique suit le réglage jour/nuit du téléphone.</p>
+    </Section>
     <Section title="Application">
       {standalone ? (
         <p className="text-sm text-muted">Installée sur l’écran d’accueil. Fonctionne hors ligne.</p>
       ) : install ? (
-        <button className="w-full h-11 rounded-xl bg-accent text-accent-ink font-medium" onClick={() => install.prompt()}>
+        <button className="w-full h-11 rounded-xl bg-sport font-medium" onClick={() => install.prompt()}>
           Installer sur l’écran d’accueil
         </button>
       ) : (
         <p className="text-sm text-muted">Pour installer : menu ⋮ de Chrome → « Ajouter à l’écran d’accueil ».</p>
       )}
-      <p className="text-xs text-muted">{CONFIG.appName} · phase 1 · fuseau {CONFIG.timeZone}</p>
+      <p className="text-xs text-muted">{CONFIG.appName} · version {__APP_VERSION__} · fuseau {CONFIG.timeZone}</p>
     </Section>
+    </>
   );
 }

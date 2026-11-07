@@ -82,7 +82,7 @@ export function ReviewSheet({ weekStart }: { weekStart: string }) {
       onClose={nav.close}
       full
       footer={
-        <button disabled={busy} onClick={confirm} className="w-full h-12 rounded-xl bg-accent text-accent-ink font-semibold">
+        <button disabled={busy} onClick={confirm} className="w-full h-12 rounded-xl bg-sport font-semibold">
           Confirmer la semaine{pending.length ? ` (${pending.length} proposition${pending.length > 1 ? 's' : ''} ignorée${pending.length > 1 ? 's' : ''})` : ''}
         </button>
       }
@@ -138,7 +138,7 @@ export function ReviewSheet({ weekStart }: { weekStart: string }) {
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {item.choices.map((c, i) => (
-                        <button key={c.label} disabled={busy} onClick={() => choose(item, i)} className="h-10 px-3 rounded-lg bg-accent text-accent-ink text-sm font-medium">
+                        <button key={c.label} disabled={busy} onClick={() => choose(item, i)} className="h-10 px-3 rounded-lg bg-sport text-sm font-medium">
                           {c.label}
                         </button>
                       ))}

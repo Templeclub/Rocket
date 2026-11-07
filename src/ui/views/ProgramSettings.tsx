@@ -73,7 +73,7 @@ export function ProgramSection() {
           <NumberInput value={settings.volume.peakWeeklyHours} step={0.25} onChange={(v) => v && setVolume({ peakWeeklyHours: v })} />
         </Field>
       </div>
-      <button disabled={gen.busy} onClick={() => gen.run(start)} className="w-full h-11 rounded-xl bg-accent text-accent-ink font-medium">
+      <button disabled={gen.busy} onClick={() => gen.run(start)} className="w-full h-11 rounded-xl bg-sport font-medium">
         {gen.busy ? 'Calcul…' : weeks.length ? `Recalculer à partir du ${labelShort(start)}` : 'Générer mon programme'}
       </button>
       <p className="text-xs text-muted">

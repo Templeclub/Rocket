@@ -5,7 +5,7 @@
 
 import { CONFIG } from './config';
 import { diffDays, labelDay, weekDays } from './dates';
-import { buildWeek, dayException, footballDaysOf, parisDaysOf, raceWeekOf } from './planner';
+import { buildWeek, dayException, footballDaysOf, parisDaysOf, parisRunDay, raceWeekOf } from './planner';
 import { isIntense, realRhythm, weekDone } from './review';
 import { isEndurance } from './sports';
 import { isPending } from './status';
@@ -29,8 +29,14 @@ export function weekIssues(p: { weekStart: LocalDate; sessions: PlannedSession[]
   const football = list.filter((s) => s.sport === 'football');
   const issues: Issue[] = [];
 
+  const runDay = parisRunDay(p.weekStart, a);
   for (const s of future) {
     const exc = dayException(s.date, a);
+    // Course générée à Paris : uniquement le 2e jour de présence (aucune si un seul jour).
+    if (s.sport === 'run' && s.origin === 'generated' && paris.has(s.date) && s.date !== runDay) {
+      issues.push({ sessionId: s.id, date: s.date, text: runDay ? `À Paris, la course se place le 2e jour (${labelDay(runDay)}).` : 'Un seul jour à Paris : pas de course prévue.' });
+      continue;
+    }
     if (s.sport === 'football' && paris.has(s.date)) {
       issues.push({ sessionId: s.id, date: s.date, text: 'Tu es à Paris ce jour-là : pas de foot.' });
       continue;

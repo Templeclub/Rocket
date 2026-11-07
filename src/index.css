@@ -34,21 +34,28 @@
   --color-warn: var(--c-warn);
   --color-danger: var(--c-danger);
   --color-accent-soft: var(--c-accent-soft);
+  --color-nav: var(--c-nav);
+  --color-on-sport: var(--c-on-sport);
 }
 
 :root {
-  --c-bg: #f5f4f1;
+  --c-bg: #f2f4f7;
   --c-surface: #ffffff;
-  --c-raised: #efede8;
-  --c-ink: #17181a;
-  --c-muted: #6e6d68;
-  --c-line: #e4e1da;
-  --c-accent: #c8611c;
-  --c-accent-soft: #fbe9dc;
+  --c-raised: #e9edf2;
+  --c-ink: #0b1220;
+  --c-muted: #5b6676;
+  --c-line: #dfe4ea;
+  --c-accent: #d63a06;
+  --c-accent-soft: #ffe7dc;
   --c-accent-ink: #ffffff;
-  --c-ok: #2f8a55;
-  --c-warn: #b7791f;
-  --c-danger: #c24141;
+  /* Dégradé « sport » des actions principales et du bandeau d'objectif */
+  --c-sport-1: #f04a12;
+  --c-sport-2: #e01e4f;
+  --c-on-sport: #ffffff;
+  --c-nav: #0b1220;
+  --c-ok: #0c8a55;
+  --c-warn: #b86e00;
+  --c-danger: #d42a35;
   /* Disciplines : palette validée (vision normale ≥ 15 sur toutes les paires), clair */
   --sp-gravel-out: #f07a2a;
   --sp-gravel-in: #7b4fd6;
@@ -56,48 +63,87 @@
   --sp-swim: #1c86e0;
   --sp-football: #d43f86;
   --sp-enduro: #8a8780;
-  /* Phases du programme : rampe chaude qui s'intensifie vers le spécifique, affûtage apaisé. */
-  --ph-base: #d9c7aa;
-  --ph-development: #e9ad7d;
-  --ph-specific: #d27a43;
-  --ph-taper: #8fb58a;
-  --ph-base-soft: #f2ebdf;
-  --ph-development-soft: #f8e3cf;
-  --ph-specific-soft: #f5d3bb;
-  --ph-taper-soft: #e1ecdd;
+  /* Phases : bleu (base), ambre (développement), orange vif (spécifique), vert (affûtage) */
+  --ph-base: #5f97d3;
+  --ph-development: #f5a524;
+  --ph-specific: #f0541c;
+  --ph-taper: #22b36b;
+  --ph-base-soft: #e7f0fa;
+  --ph-development-soft: #fff3dd;
+  --ph-specific-soft: #ffe7dd;
+  --ph-taper-soft: #def5e9;
   color-scheme: light;
 }
 
+/* Thème : automatique (réglage du téléphone) sauf si j'ai choisi Clair ou Sombre dans l'appli. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --c-bg: #101214;
-    --c-surface: #1a1d20;
-    --c-raised: #24282c;
-    --c-ink: #eceae6;
-    --c-muted: #9a9892;
-    --c-line: #2e3337;
-    --c-accent: #e58a43;
-    --c-accent-soft: #3a2618;
-    --c-accent-ink: #1a1009;
-    --c-ok: #55bb7f;
-    --c-warn: #e0a84a;
-    --c-danger: #e06b6b;
+  :root:not([data-theme="light"]) {
+    --c-bg: #080c13;
+    --c-surface: #111823;
+    --c-raised: #1a2331;
+    --c-ink: #eef2f7;
+    --c-muted: #8b97a7;
+    --c-line: #222d3c;
+    --c-accent: #ff6a2c;
+    --c-accent-soft: #3a1a0e;
+    --c-accent-ink: #160a04;
+    --c-sport-1: #ff7a3d;
+    --c-sport-2: #ff4672;
+    --c-on-sport: #160a04;
+    --c-nav: #03060b;
+    --c-ok: #33d18e;
+    --c-warn: #ffb22e;
+    --c-danger: #ff5c66;
     --sp-gravel-out: #e06f25;
     --sp-gravel-in: #9a5ce6;
     --sp-run: #1f9d50;
     --sp-swim: #2a8ad6;
     --sp-football: #d4458c;
     --sp-enduro: #8d8b85;
-    --ph-base: #75664f;
-    --ph-development: #9c6a43;
-    --ph-specific: #c36d37;
-    --ph-taper: #5f8a5b;
-    --ph-base-soft: #26231f;
-    --ph-development-soft: #2e241b;
-    --ph-specific-soft: #36231a;
-    --ph-taper-soft: #1f2820;
+    --ph-base: #3f78b8;
+    --ph-development: #d08a12;
+    --ph-specific: #e5541f;
+    --ph-taper: #1f9a5c;
+    --ph-base-soft: #0f1b2a;
+    --ph-development-soft: #22190a;
+    --ph-specific-soft: #2a140d;
+    --ph-taper-soft: #0c2118;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --c-bg: #080c13;
+  --c-surface: #111823;
+  --c-raised: #1a2331;
+  --c-ink: #eef2f7;
+  --c-muted: #8b97a7;
+  --c-line: #222d3c;
+  --c-accent: #ff6a2c;
+  --c-accent-soft: #3a1a0e;
+  --c-accent-ink: #160a04;
+  --c-sport-1: #ff7a3d;
+  --c-sport-2: #ff4672;
+  --c-on-sport: #160a04;
+  --c-nav: #03060b;
+  --c-ok: #33d18e;
+  --c-warn: #ffb22e;
+  --c-danger: #ff5c66;
+  --sp-gravel-out: #e06f25;
+  --sp-gravel-in: #9a5ce6;
+  --sp-run: #1f9d50;
+  --sp-swim: #2a8ad6;
+  --sp-football: #d4458c;
+  --sp-enduro: #8d8b85;
+  --ph-base: #3f78b8;
+  --ph-development: #d08a12;
+  --ph-specific: #e5541f;
+  --ph-taper: #1f9a5c;
+  --ph-base-soft: #0f1b2a;
+  --ph-development-soft: #22190a;
+  --ph-specific-soft: #2a140d;
+  --ph-taper-soft: #0c2118;
+  color-scheme: dark;
 }
 
 html,
@@ -146,3 +192,15 @@ h1, h2, h3, .font-display {
 }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* Dégradé sportif : actions principales, bandeau d'objectif, onglet actif. */
+.bg-sport {
+  background-image: linear-gradient(120deg, var(--c-sport-1) 0%, var(--c-sport-2) 100%);
+  color: var(--c-on-sport);
+}
+.text-sport {
+  background-image: linear-gradient(120deg, var(--c-sport-1), var(--c-sport-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

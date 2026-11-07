@@ -6,6 +6,8 @@ import { ActionsSheet, CreateSheet } from './components/QuickSheets';
 import { ParisSheet, ReplanSheet } from './components/WeekEvaluation';
 import { ToastProvider } from './components/Toast';
 import { StravaAutoSync } from './StravaAutoSync';
+import { CloudAutoBackup } from './CloudAutoBackup';
+import { ThemeSync } from './ThemeSync';
 import { NavCtx, type Nav, type Overlay } from './hooks';
 import { MonthView } from './views/MonthView';
 import { WeekView } from './views/WeekView';
@@ -96,10 +98,12 @@ export function App() {
     <NavCtx.Provider value={nav}>
       <ToastProvider>
         <StravaAutoSync />
+        <CloudAutoBackup />
+        <ThemeSync />
         <div className="min-h-dvh max-w-xl mx-auto flex flex-col">
           <header className="sticky top-0 z-20 bg-bg/90 backdrop-blur-md px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-end gap-2">
             <h1 className="font-display text-2xl font-semibold tracking-tight">{cap(title)}</h1>
-            <span className="ml-auto mb-1 font-display text-xs font-semibold tracking-[0.2em] text-accent uppercase">Ascèse</span>
+            <span className="ml-auto mb-1 font-display text-sm font-extrabold italic tracking-[0.18em] text-sport uppercase">Ascèse</span>
           </header>
           <main className="flex-1 px-3 pb-44">
             {view === 'week' && <WeekView weekStart={weekStart} focusDate={focusDate} />}
@@ -122,7 +126,7 @@ export function App() {
                   </button>
                 </div>
               )}
-              <div className="grid grid-cols-3 rounded-3xl bg-ink text-bg p-1.5 shadow-xl">
+              <div className="grid grid-cols-3 rounded-3xl bg-nav text-white p-1.5 shadow-xl shadow-black/20 ring-1 ring-white/5">
                 {(
                   [
                     ['week', 'Semaine', <IconWeek key="w" />],
@@ -137,7 +141,7 @@ export function App() {
                       setView(v);
                     }}
                     className={`h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-                      view === v ? 'bg-bg text-ink' : 'text-bg/70'
+                      view === v ? 'bg-sport shadow-lg shadow-black/20' : 'text-white/60'
                     }`}
                     aria-current={view === v ? 'page' : undefined}
                   >

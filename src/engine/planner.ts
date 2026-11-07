@@ -78,6 +78,15 @@ export function parisDaysOf(weekStart: LocalDate, a: Availability): LocalDate[] 
   return weekDays(weekStart).filter((d) => a.template[isoWeekday(d)]?.paris && dayException(d, a) === null);
 }
 
+/** Jour de la course à Paris : le 2e jour de présence (consécutive ou non), sinon aucun. */
+export function parisRunDay(weekStart: LocalDate, a: Availability): LocalDate | null {
+  const days = parisDaysOf(weekStart, a).filter((d) => {
+    const exc = dayException(d, a);
+    return exc !== 'runOnly' && exc !== 'unavailable';
+  });
+  return days.length >= 2 ? days[1] : null;
+}
+
 /** Jours de foot d'une semaine : lundi et jeudi, sauf à Paris, en voyage ou indisponible. */
 export function footballDaysOf(weekStart: LocalDate, a: Availability): LocalDate[] {
   const paris = new Set(parisDaysOf(weekStart, a));
@@ -340,8 +349,9 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
     budget -= light ? 45 : keyMin;
   }
 
-  // Footing du jour à Paris (avec variante natation).
-  const parisDay = take(days.find((d) => !used.has(d.date) && d.paris && d.minutes >= 20 && d.wd <= 5));
+  // Footing à Paris (avec variante natation) : toujours le 2e jour de présence ; une seule journée à Paris → pas de course.
+  const runDate = parisRunDay(week.weekStart, a);
+  const parisDay = take(days.find((d) => d.date === runDate && !used.has(d.date) && d.minutes >= 20));
   let runMin = 0;
   if (parisDay) {
     runMin = Math.min(parisDay.minutes, phase === 'base' || light || taper ? P.parisRunMin[0] : P.parisRunMin[1]);

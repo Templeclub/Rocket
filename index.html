@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#101214" />
+    <meta name="theme-color" content="#f2f4f7" />
+    <script>
+      // Thème choisi dans l'appli, appliqué avant le premier affichage.
+      try {
+        var t = localStorage.getItem('ascese.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Ascèse</title>
   </head>

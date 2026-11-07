@@ -35,7 +35,7 @@ function Action({ label, onClick, children, tone }: { label: string; onClick: ()
     <button
       onClick={onClick}
       className={`flex-1 min-w-0 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 text-xs font-medium active:scale-95 ${
-        tone === 'accent' ? 'bg-accent text-accent-ink' : tone === 'danger' ? 'bg-raised text-danger' : 'bg-raised'
+        tone === 'accent' ? 'bg-sport' : tone === 'danger' ? 'bg-raised text-danger' : 'bg-raised'
       }`}
     >
       {children}

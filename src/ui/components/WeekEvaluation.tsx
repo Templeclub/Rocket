@@ -173,7 +173,7 @@ export function WeekEvaluationCard({ weekStart, sessions, evaluation }: { weekSt
               </li>
             ))}
           </ul>
-          <button onClick={() => nav.open({ kind: 'replan', weekStart })} className="h-9 px-3 rounded-lg bg-accent text-accent-ink text-sm font-medium flex items-center gap-1.5">
+          <button onClick={() => nav.open({ kind: 'replan', weekStart })} className="h-9 px-3 rounded-lg bg-sport text-sm font-medium flex items-center gap-1.5">
             <IconRefresh className="w-4 h-4" /> Replanifier la semaine
           </button>
         </div>
@@ -242,7 +242,7 @@ export function ReplanSheet({ weekStart }: { weekStart: LocalDate }) {
             nav.close();
             toast('Semaine replanifiée', { label: 'Annuler', run: undo });
           }}
-          className="w-full h-12 rounded-xl bg-accent text-accent-ink font-semibold"
+          className="w-full h-12 rounded-xl bg-sport font-semibold"
         >
           Appliquer
         </button>
@@ -320,7 +320,7 @@ export function ParisSheet({ weekStart }: { weekStart: LocalDate }) {
         </div>
         <p className="text-xs text-muted">Astuce : sur la vue Semaine, un tap sur un point pose 2 jours si la semaine n’a pas encore de Paris, puis ajoute ou retire un jour à chaque tap.</p>
         {issues > 0 && (
-          <button onClick={() => nav.replace({ kind: 'replan', weekStart })} className="w-full h-12 rounded-xl bg-accent text-accent-ink font-semibold flex items-center justify-center gap-2">
+          <button onClick={() => nav.replace({ kind: 'replan', weekStart })} className="w-full h-12 rounded-xl bg-sport font-semibold flex items-center justify-center gap-2">
             <IconRefresh className="w-4 h-4" /> Replanifier la semaine ({issues} point{issues > 1 ? 's' : ''} à revoir)
           </button>
         )}
