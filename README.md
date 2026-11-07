@@ -5,7 +5,7 @@
 PWA personnelle de planification d’entraînement vers le **Desertus Bikus** (10 avril 2027, 1 300 km, 13 000 m D+, 7 jours max).
 Mobile Android, une main, en français, données locales uniquement, fuseau Europe/Paris.
 
-**État : `main` à jour jusqu’à Strava. Thème jour/nuit, nouvelles couleurs, course à Paris et sauvegarde en ligne sur la branche `theme-sauvegarde`.**
+**État : `main` à jour (thème, sauvegarde en ligne). Motivation (jauge, semaines tenues, niveaux, célébrations) sur la branche `gamification`.**
 
 ## Utilisation
 
@@ -69,6 +69,15 @@ Mise en place (une fois) : créer une application sur `strava.com/settings/api` 
 
 Limites : pas de synchronisation quand l’appli est fermée (il faudrait stocker les jetons sur un serveur : phase 4) ; une activité supprimée sur Strava n’est pas retirée d’Ascèse.
 
+### Motivation
+Principe : récompenser la **régularité et les bonnes décisions**, jamais le volume en plus du plan. Toutes les valeurs dans `CONFIG.gamification`.
+- **Prêt pour le Desertus (… %)** : ce qui a réellement été fait, comparé à ce que l’épreuve demande. 5 composantes sur 100 : rythme réel sur les semaines terminées (25, objectif 8 h d’endurance par semaine), plus longue sortie (20, objectif 6 h), jours enchaînés avec 2 h de vélo ou plus (15, objectif 3), spécifique (15 : sortie chargée, sortie de nuit, sortie à 1 500 m de D+), régularité (25 : semaines tenues sur l’ensemble du programme). La composante où il reste le plus de points est mise en avant avec sa prochaine marche. Plan suivi à la lettre : environ 60 % à la fin (le pic de 5h30 ne couvre pas tout ce que demande le Desertus, et la jauge le dit).
+- **Semaines tenues** : semaine de charge ou bloc tenue si les séances clés sont faites (ou laissées tombées proprement, aucune laissée « non faite ») et au moins 60 % des heures prévues ; semaine allégée ou affûtage tenue si l’on reste entre 40 % et 110 % du prévu (respecter le repos compte) ; voyage tenu avec une sortie. **Un joker par mois** sauve une semaine difficile. Série en cours, record, et ce qu’il reste pour tenir la semaine en cours.
+- **Niveaux** : points = minutes × effort perçu (RPE de l’activité, sinon celui de la séance, sinon une valeur par sport), **plafonnés chaque semaine à la charge prévue** ; +150 par semaine tenue. Novice → Pèlerin (5 000) → Nomade (15 000) → Méhariste (28 000) → Ascète du désert (42 000) → **Finisher** (une sortie vélo pendant le Desertus). Programme suivi à la lettre : Ascète du désert la semaine de l’épreuve.
+- **Petits plaisirs** : vibration et éclat discret sur « Fait » (+ points dans le bandeau), carte animée pour une semaine tenue ou un niveau atteint (fêtés une seule fois), image de la semaine à partager (menu de partage Android) depuis « Ma progression ». Désactivable dans Paramètres → Application ; pas d’animation si le téléphone demande moins de mouvements.
+
+Accès : le bandeau à 3 tuiles sous le compte à rebours (jauge, série, niveau) ouvre « Ma progression ».
+
 ### Thème et couleurs
 Paramètres → Application → **Automatique / Jour / Nuit** (automatique suit le téléphone). Couleurs « sport » : dégradé orange → rouge pour les actions principales, l’onglet actif et le bandeau d’objectif (compte à rebours J-xx), barre de navigation bleu nuit, phases en bleu (base), ambre (développement), orange vif (spécifique) et vert (affûtage). Contraste du texte d’accent : 4,7:1 sur fond blanc.
 
@@ -122,7 +131,7 @@ Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) : de **3
 ```bash
 npm install
 npm run dev        # serveur local
-npm test           # tests unitaires (Vitest) : 150 tests
+npm test           # tests unitaires (Vitest) : 164 tests
 npm run build      # vérification TypeScript + build PWA
 npm run icons      # régénère les icônes PNG depuis public/favicon.svg
 ```
@@ -138,6 +147,7 @@ src/engine/        TypeScript pur, testé, sans React ni Dexie
   workouts.ts      séances paramétrées (HT ERG, extérieur FC/RPE, sortie longue, course, natation)
   review.ts        rythme réel, plafond, recommandations chiffrées, semaine à confirmer
   evaluate.ts      signalements, suivi du programme (retard/avance), reconstruction d’une semaine
+  gamification.ts  jauge de préparation, semaines tenues (joker), points plafonnés et niveaux
   strava.ts        classement des activités Strava (titre puis type), conversion, rapprochement jour + discipline
 netlify/functions/strava.mjs   relais Strava (échange du code, jetons, activités), sans stockage
 netlify/functions/backup.mjs   sauvegarde en ligne chiffrée (Netlify Blobs, 30 versions)

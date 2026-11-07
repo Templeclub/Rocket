@@ -2,6 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '../db/db';
 import * as A from '../db/actions';
+import { xpOf } from '../engine/gamification';
+import { celebrate } from './feedback';
 import { setConfirmed, switchVariant } from '../db/program';
 import { labelDay, todayLocal } from '../engine/dates';
 import type { AppSettings, LocalDate } from '../engine/types';
@@ -20,7 +22,8 @@ export type Overlay =
   | { kind: 'actions'; id: string }
   | { kind: 'replan'; weekStart: LocalDate }
   | { kind: 'paris'; weekStart: LocalDate }
-  | { kind: 'settings'; section: string };
+  | { kind: 'settings'; section: string }
+  | { kind: 'progress' };
 
 export interface Nav {
   open: (o: Overlay) => void;
@@ -72,7 +75,10 @@ export function useSessionActions() {
     done: (id: string) =>
       guard(async () => {
         const { activity, undo } = await A.markSessionDone(id);
-        toast('Faite ✓', undoAction(undo), {
+        celebrate({ kind: 'done' });
+        const s = await db.sessions.get(id);
+        const pts = s ? xpOf(s.targetDurationMin, s.sport, s.rpe) : 0;
+        toast(pts ? `Faite ✓ +${pts} pts` : 'Faite ✓', undoAction(undo), {
           label: 'Détailler',
           run: () => nav.open({ kind: 'activity', id: activity.id }),
         });
