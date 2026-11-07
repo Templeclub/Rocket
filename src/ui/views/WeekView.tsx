@@ -1,13 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef } from 'react';
 import { db } from '../../db/db';
-import { addDays, cap, diffDays, labelDay, weekDays } from '../../engine/dates';
+import { addDays, cap, labelDay, weekDays } from '../../engine/dates';
 import { parisDaysOf } from '../../engine/planner';
 import { SPORT_KEYS, SPORT_META } from '../../engine/sports';
 import { summarize, type SportHours } from '../../engine/stats';
 import type { Activity, LocalDate, PlannedSession, SportKey } from '../../engine/types';
 import { formatHours } from '../../engine/zones';
 import { IconPlus } from '../components/Icons';
+import { GoalHero } from '../components/GoalHero';
 import { PhaseTimeline } from '../components/Phases';
 import { ProgramEmptyCard, ReminderBanner } from '../components/ProgramCards';
 import { ActivityCard, SessionCard } from '../components/SessionCard';
@@ -61,7 +62,6 @@ export function WeekView({ weekStart, focusDate }: { weekStart: LocalDate; focus
   const end = addDays(weekStart, 7);
   const sessions = useLiveQuery(() => db.sessions.where('date').between(weekStart, end, true, false).toArray(), [weekStart]) ?? [];
   const activities = useLiveQuery(() => db.activities.where('date').between(weekStart, end, true, false).toArray(), [weekStart]) ?? [];
-  const goal = useLiveQuery(() => db.goals.where('date').aboveOrEqual(today).first(), [today]);
   const weekCount = useLiveQuery(() => db.weeks.count(), []);
   const evaluation = useWeekEvaluation(weekStart);
   const dayRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -81,11 +81,7 @@ export function WeekView({ weekStart, focusDate }: { weekStart: LocalDate; focus
 
   return (
     <div className="space-y-3">
-      {goal && (
-        <div className="text-xs text-muted -mt-1">
-          {goal.name} dans <span className="font-semibold text-ink">{diffDays(goal.date, today)} jours</span>
-        </div>
-      )}
+      <GoalHero weekStart={weekStart} sessions={sessions} activities={activities} />
       {weekCount === 0 && <ProgramEmptyCard />}
       <ReminderBanner />
       <PhaseTimeline current={weekStart} onWeek={(w) => nav.goWeekOf(w)} compact />

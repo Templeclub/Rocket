@@ -19,7 +19,7 @@ import { useNav, useSessionActions, useSettings } from '../hooks';
 import { SportGlyph } from '../components/SportGlyph';
 
 const btn = 'h-11 rounded-xl px-4 font-medium';
-const primary = `${btn} bg-accent text-accent-ink flex-1`;
+const primary = `${btn} bg-sport flex-1`;
 const secondary = `${btn} bg-raised`;
 
 /** Applique un changement de date fait dans le formulaire avec la logique de report. */

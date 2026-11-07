@@ -5,7 +5,7 @@
 PWA personnelle de planification d’entraînement vers le **Desertus Bikus** (10 avril 2027, 1 300 km, 13 000 m D+, 7 jours max).
 Mobile Android, une main, en français, données locales uniquement, fuseau Europe/Paris.
 
-**État : phase 1 et interface sur `main`. Strava, illustrations, phases et paramètres rangés sur la branche `strava-design`, en attente de validation.**
+**État : `main` à jour jusqu’à Strava. Thème jour/nuit, nouvelles couleurs, course à Paris et sauvegarde en ligne sur la branche `theme-sauvegarde`.**
 
 ## Utilisation
 
@@ -69,6 +69,18 @@ Mise en place (une fois) : créer une application sur `strava.com/settings/api` 
 
 Limites : pas de synchronisation quand l’appli est fermée (il faudrait stocker les jetons sur un serveur : phase 4) ; une activité supprimée sur Strava n’est pas retirée d’Ascèse.
 
+### Thème et couleurs
+Paramètres → Application → **Automatique / Jour / Nuit** (automatique suit le téléphone). Couleurs « sport » : dégradé orange → rouge pour les actions principales, l’onglet actif et le bandeau d’objectif (compte à rebours J-xx), barre de navigation bleu nuit, phases en bleu (base), ambre (développement), orange vif (spécifique) et vert (affûtage). Contraste du texte d’accent : 4,7:1 sur fond blanc.
+
+### Sauvegarde en ligne
+Les données restent sur le téléphone d’une version à l’autre de l’appli (un déploiement ne touche pas IndexedDB). La sauvegarde en ligne protège contre une désinstallation, un effacement des données de Chrome ou un changement de téléphone :
+- **chiffrée sur le téléphone** (AES-GCM 256, clé dérivée de la phrase secrète par PBKDF2) : Netlify ne stocke que du chiffré ;
+- envoyée **automatiquement** à l’ouverture, toutes les 2 minutes s’il y a du nouveau, et en quittant l’appli ; 30 versions quotidiennes conservées ; restauration de n’importe laquelle ;
+- stockée dans **Netlify Blobs** (fonction `netlify/functions/backup.mjs`, rien d’autre à créer) ;
+- contient programme, séances, réalisé, séances types, objectif et paramètres (thème compris) ; **pas** la connexion Strava (à refaire sur un nouveau téléphone) ni la phrase secrète.
+
+À faire une fois : choisir une phrase secrète (12 caractères ou plus, à noter), l’ajouter dans Netlify → *Environment variables* sous `ASCESE_BACKUP_KEY`, redéployer, puis la saisir dans Paramètres → Sauvegarde. Sur un nouveau téléphone : installer l’appli, saisir la même phrase, la dernière sauvegarde est proposée.
+
 ### Paramètres
 Rangés par rubriques : **Entraînement** (Programme, Disponibilités, Objectif), **Profil** (Profil et zones, Séances types), **Connexions** (Strava), **Données et application** (Sauvegarde, Application). Chaque rubrique s’ouvre dans son panneau.
 
@@ -84,7 +96,7 @@ Deux affichages : **Séances** (un point par séance, plein si faite, rouge si n
 | 15 févr → 22 mars | Spécifique | voyage jusqu’au 20 févr, reprise, sortie chargée, sortie qui finit de nuit, **bloc de 3 jours** le 12–14 mars (pose ton vendredi), répétition générale 27–28 mars |
 | 29 mars → 10 avril | Affûtage | déblocage, volume −40 % puis −65 %, pas de foot la semaine de l’objectif |
 
-Semaine type (Paris mardi-mercredi) : lundi foot, mardi footing à Paris (variante natation), jeudi foot, vendredi endurance (dehors s’il fait jour), samedi sortie longue avec la séance structurée intégrée (clé, variante home-trainer), dimanche seconde sortie si le volume le permet. Quand Paris tombe sur d’autres jours, la séance structurée revient un matin compatible (en home-trainer, mode ERG). En spécifique, le week-end enchaîne deux jours.
+Semaine type (Paris mardi-mercredi) : lundi foot, mercredi footing à Paris (toujours le 2e jour de présence ; aucune course si un seul jour à Paris ; variante natation), jeudi foot, vendredi endurance (dehors s’il fait jour), samedi sortie longue avec la séance structurée intégrée (clé, variante home-trainer), dimanche seconde sortie si le volume le permet. Quand Paris tombe sur d’autres jours, la séance structurée revient un matin compatible (en home-trainer, mode ERG). En spécifique, le week-end enchaîne deux jours.
 
 Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) : de **3h15** (3h × 1,10, arrondi en dessous) jusqu’au pic de **5h30**, blocs jusqu’à **~7h**. Tes 4h30 et 7h incluaient un foot de 1h30 : ce sont 3h et 5h30 d’endurance, et le second foot de la semaine vient en plus.
 
@@ -110,7 +122,7 @@ Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) : de **3
 ```bash
 npm install
 npm run dev        # serveur local
-npm test           # tests unitaires (Vitest) : 140 tests
+npm test           # tests unitaires (Vitest) : 150 tests
 npm run build      # vérification TypeScript + build PWA
 npm run icons      # régénère les icônes PNG depuis public/favicon.svg
 ```
@@ -128,6 +140,8 @@ src/engine/        TypeScript pur, testé, sans React ni Dexie
   evaluate.ts      signalements, suivi du programme (retard/avance), reconstruction d’une semaine
   strava.ts        classement des activités Strava (titre puis type), conversion, rapprochement jour + discipline
 netlify/functions/strava.mjs   relais Strava (échange du code, jetons, activités), sans stockage
+netlify/functions/backup.mjs   sauvegarde en ligne chiffrée (Netlify Blobs, 30 versions)
+netlify/tests/                 tests des fonctions (hors du dossier des fonctions, sinon Netlify les déploie)
   sun.ts           aube, lever, coucher, crépuscule (Bordeaux, sans API)
   status.ts, stats.ts, zones.ts, dates.ts, library.ts, backup.ts, activity.ts
 src/db/            Dexie : schéma v2 (semaines, recommandations), actions, programme

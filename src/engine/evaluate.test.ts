@@ -127,3 +127,25 @@ describe('suivi du programme', () => {
     expect(p.status).toBe('on-track');
   });
 });
+
+describe('course à Paris : le 2e jour de présence, sinon rien', () => {
+  const runsOf = (days: string[]) => {
+    const { sessions } = generatePlan({ startWeek: W, goal, settings: withParis(days), now: 0 });
+    return sessions.filter((s) => s.date >= W && s.date <= '2026-11-22' && s.sport === 'run').map((s) => s.date);
+  };
+  it('mardi-mercredi → course le mercredi', () => {
+    expect(runsOf(['2026-11-17', '2026-11-18'])).toEqual(['2026-11-18']);
+  });
+  it('jeudi-vendredi-samedi → course le vendredi', () => {
+    expect(runsOf(['2026-11-19', '2026-11-20', '2026-11-21'])).toEqual(['2026-11-20']);
+  });
+  it('un seul jour à Paris → pas de course', () => {
+    expect(runsOf(['2026-11-19'])).toEqual([]);
+  });
+  it('course générée le 1er jour de Paris → signalée', () => {
+    const { sessions, weeks } = generatePlan({ startWeek: W, goal, settings: defaultSettings(), now: 0 });
+    const moved = sessions.map((s) => (s.sport === 'run' && s.date === '2026-11-18' ? { ...s, date: '2026-11-17' } : s));
+    const issues = weekIssues({ weekStart: W, sessions: moved, settings: defaultSettings(), today: '2026-11-15', plan: weeks[0] });
+    expect(issues.some((i) => /2e jour/.test(i.text))).toBe(true);
+  });
+});

@@ -242,8 +242,8 @@ describe('bilan et recommandations', () => {
     expect(low.justification.unit).toBe('%');
   });
 
-  it('R7 : séance intense le lendemain du foot → signalée avec une proposition', () => {
-    const sessions = plan.sessions.map((s) => (s.date === '2026-11-17' && s.sport === 'run' ? { ...s, rpe: 8 } : s));
+  it('R7 : séance intense la veille du foot → signalée avec une proposition', () => {
+    const sessions = plan.sessions.map((s) => (s.date === '2026-11-18' && s.sport === 'run' ? { ...s, rpe: 8 } : s));
     const r = buildReview({ ...base, targetWeek: w2, today: '2026-11-15', sessions, activities: [] });
     const item = r.items.find((i) => i.type === 'football-intensity');
     expect(item?.justification.value).toBe(1);

@@ -36,6 +36,7 @@ export function useGenerate() {
 }
 
 export function ProgramEmptyCard() {
+  const nav = useNav();
   const today = useToday();
   const goal = useLiveQuery(async () => (await db.goals.toArray()).find((g) => g.kind === 'main'), []);
   const gen = useGenerate();
@@ -47,8 +48,11 @@ export function ProgramEmptyCard() {
         Je prépare toutes les semaines du {labelShort(start)} jusqu’au {goal ? labelShort(goal.date) : '—'} : base, développement, spécifique, affûtage,
         semaines allégées, congés de Noël et voyage de février, à partir de ton rythme de départ. Tu pourras tout déplacer, et chaque fin de semaine tu confirmes la suivante.
       </p>
-      <button disabled={gen.busy} onClick={() => gen.run()} className="w-full h-12 rounded-xl bg-accent text-accent-ink font-semibold">
+      <button disabled={gen.busy} onClick={() => gen.run()} className="w-full h-12 rounded-xl bg-sport font-semibold">
         {gen.busy ? 'Génération…' : 'Générer mon programme'}
+      </button>
+      <button onClick={() => nav.open({ kind: 'settings', section: 'data' })} className="w-full text-sm text-accent font-medium">
+        Nouveau téléphone ? Restaurer ma sauvegarde en ligne
       </button>
     </section>
   );
@@ -64,15 +68,16 @@ export function ReminderBanner() {
   return (
     <button
       onClick={() => nav.open({ kind: 'review', weekStart: w })}
-      className="w-full rounded-2xl bg-accent text-accent-ink p-3 text-left flex items-center gap-3 shadow"
+      className="w-full rounded-2xl bg-surface card-shadow p-3 text-left flex items-center gap-3 border border-accent/30"
     >
-      <span className="text-2xl" aria-hidden="true">
-        ☑
+      <span className="w-10 h-10 rounded-xl bg-sport grid place-items-center text-lg font-bold shrink-0" aria-hidden="true">
+        ✓
       </span>
       <span className="flex-1">
         <span className="block font-semibold">Confirme ta semaine du {labelWeek(w)}</span>
-        <span className="block text-sm opacity-90">Bilan, rythme réel et propositions chiffrées</span>
+        <span className="block text-sm text-muted">Bilan, rythme réel et propositions chiffrées</span>
       </span>
+      <span className="text-accent font-semibold text-sm">Ouvrir</span>
     </button>
   );
 }
