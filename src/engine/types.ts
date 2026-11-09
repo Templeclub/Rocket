@@ -149,6 +149,8 @@ export interface DayAvailability {
   minutes: number;
   /** Jour à Paris : course uniquement. */
   paris: boolean;
+  /** Home-trainer possible le soir (minutes), quand je suis à la maison et sans foot. */
+  evening?: number;
 }
 
 export interface AvailabilityException {
@@ -179,6 +181,8 @@ export interface VolumeSettings {
   peakWeeklyHours: number;
   /** Base de calcul ; absent = ancienne version (heures totales, foot compris). */
   basis?: 'endurance';
+  /** Version de la méthode pour laquelle ces réglages ont été migrés. */
+  method?: number;
 }
 
 export interface AppSettings {
@@ -215,6 +219,8 @@ export interface WeekPlan {
   confirmedAt?: number;
   /** Semaine exclue du rythme réel (R1). */
   excluded?: boolean;
+  /** Version de la méthode qui a construit la semaine. */
+  version?: number;
 }
 
 export interface Justification {

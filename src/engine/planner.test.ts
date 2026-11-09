@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultGoals } from './activity';
 import { addDays, diffDays, isoWeekday } from './dates';
 import { defaultStartWeek, generatePlan, macroPlan } from './planner';
-import { buildReview, isIntense, realRhythm, weekToConfirm } from './review';
+import { buildReview, isIntense, realRhythm, volumeCap, weekToConfirm } from './review';
 import { summarize } from './stats';
 import { daylight } from './sun';
 import type { Activity, PlannedSession, WeekPlan } from './types';
@@ -92,7 +92,7 @@ describe('règles de construction des semaines', () => {
   it('R4 : au plus 2 séances clés par semaine (un enchaînement compte pour une)', () => {
     for (const w of plan.weeks) {
       const keys = sessionsOf(w.weekStart).filter((s) => s.priority === 'key');
-      const units = new Set(keys.map((s) => (/^(Bloc|Enchaînement|Répétition)|chargée|de nuit/.test(s.title) && isoWeekday(s.date) >= 5 ? 'weekend' : s.id)));
+      const units = new Set(keys.map((s) => (/^(Bloc|Enchaînement|Répétition)|charg|de nuit/.test(s.title) && isoWeekday(s.date) >= 5 ? 'weekend' : s.id)));
       expect(units.size).toBeLessThanOrEqual(2);
     }
   });
@@ -138,9 +138,9 @@ describe('règles de construction des semaines', () => {
 
   it('spécifique : sortie chargée, sortie de nuit, bloc de 3 jours, répétition générale', () => {
     const titles = plan.sessions.filter((s) => s.date >= '2027-02-15').map((s) => s.title);
-    expect(titles.some((t) => /chargée/.test(t))).toBe(true);
+    expect(titles.some((t) => /charg/.test(t))).toBe(true);
     expect(titles.some((t) => /de nuit/.test(t))).toBe(true);
-    expect(titles.filter((t) => /^Bloc J/.test(t)).length).toBe(3);
+    expect(titles.filter((t) => /^(Bloc|Répétition générale) J/.test(t)).length).toBe(9); // 3 longs week-ends de 3 jours
     expect(titles.some((t) => /Répétition générale/.test(t))).toBe(true);
   });
 
@@ -243,7 +243,8 @@ describe('bilan et recommandations', () => {
   });
 
   it('R7 : séance intense la veille du foot → signalée avec une proposition', () => {
-    const sessions = plan.sessions.map((s) => (s.date === '2026-11-18' && s.sport === 'run' ? { ...s, rpe: 8 } : s));
+    const run = plan.sessions.find((s) => s.sport === 'run' && s.date >= '2026-11-16' && s.date <= '2026-11-22')!;
+    const sessions = plan.sessions.map((s) => (s.id === run.id ? { ...s, date: '2026-11-18', rpe: 8 } : s));
     const r = buildReview({ ...base, targetWeek: w2, today: '2026-11-15', sessions, activities: [] });
     const item = r.items.find((i) => i.type === 'football-intensity');
     expect(item?.justification.value).toBe(1);
@@ -256,5 +257,43 @@ describe('bilan et recommandations', () => {
     const confirmed = plan.weeks.map((w) => (w.weekStart === '2026-11-16' ? { ...w, confirmedAt: 1 } : w));
     expect(weekToConfirm('2026-11-14', confirmed)).toBeNull();
     expect(addDays('2026-11-14', 0)).toBe('2026-11-14');
+  });
+});
+
+describe('plafond de volume (méthode v2)', () => {
+  it('plan suivi (≥ 80 %) : le plan peut monter jusqu’à sa cible', () => {
+    const w2 = plan.weeks[1];
+    const acts = [act('2026-11-14', plan.weeks[0].targetHours)];
+    const c = volumeCap({ before: w2.weekStart, weeks: plan.weeks, activities: acts, rhythmHours: 3, plan: w2 });
+    expect(c.following).toBe(true);
+    expect(c.cap).toBe(Math.max(3 * 1.1, w2.targetHours));
+  });
+  it('plan non suivi (< 80 %) : retour au rythme réel × 1,10', () => {
+    const w2 = plan.weeks[1];
+    const acts = [act('2026-11-14', plan.weeks[0].targetHours * 0.5)];
+    const c = volumeCap({ before: w2.weekStart, weeks: plan.weeks, activities: acts, rhythmHours: 2, plan: w2 });
+    expect(c.following).toBe(false);
+    expect(c.cap).toBeCloseTo(2.2);
+  });
+});
+
+describe('méthode v2 : volume suffisant pour le Desertus', () => {
+  it('le pic d’endurance atteint 8 h en janvier, les longs week-ends 10 h', () => {
+    expect(Math.max(...plan.weeks.filter((w) => w.kind === 'load').map((w) => w.targetHours))).toBe(8);
+    expect(plan.weeks.filter((w) => w.kind === 'block' && w.phase === 'specific').map((w) => w.targetHours).sort((a, b) => a - b)).toEqual([7, 10.25, 10.25]);
+  });
+  it('3 longs week-ends de 3 jours en spécifique', () => {
+    expect(plan.weeks.filter((w) => w.kind === 'block' && w.phase === 'specific')).toHaveLength(3);
+  });
+  it('la plus longue sortie dépasse 4 h 30 avant le voyage de février', () => {
+    expect(Math.max(...plan.weeks.filter((w) => w.weekStart < '2027-02-01').map((w) => w.longRideMin))).toBeGreaterThanOrEqual(270);
+  });
+  it('pas de foot pendant les congés de Noël ni à J-2 du départ', () => {
+    const foot = plan.sessions.filter((s) => s.sport === 'football').map((s) => s.date);
+    expect(foot.some((d) => d >= '2026-12-24' && d <= '2027-01-01')).toBe(false);
+    expect(foot).not.toContain('2027-04-08');
+  });
+  it('semaine allégée avant le voyage : du vélo quand même', () => {
+    expect(sessionsOf('2027-02-01').some((s) => s.sport === 'gravel')).toBe(true);
   });
 });

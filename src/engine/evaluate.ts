@@ -6,7 +6,7 @@
 import { CONFIG } from './config';
 import { diffDays, labelDay, weekDays } from './dates';
 import { buildWeek, dayException, footballDaysOf, parisDaysOf, parisRunDay, raceWeekOf } from './planner';
-import { isIntense, realRhythm, weekDone } from './review';
+import { isIntense, realRhythm, volumeCap, weekDone } from './review';
 import { isEndurance } from './sports';
 import { isPending } from './status';
 import { inRange } from './stats';
@@ -88,8 +88,7 @@ export function programProgress(p: { weekStart: LocalDate; today: LocalDate; wee
   const targetH = done.reduce((s, w) => s + w.targetH, 0);
   const ratio = targetH > 0 ? doneH / targetH : 1;
   const rhythm = realRhythm({ before: p.weekStart, activities: p.activities, weeks: p.weeks, startHours: p.settings.volume.startWeeklyHours, planStart: CONFIG.planStart });
-  const factor = plan?.kind === 'block' ? CONFIG.rules.blockWeekCap : CONFIG.rules.weeklyVolumeCap;
-  const allowedH = rhythm.hours * factor;
+  const allowedH = volumeCap({ before: p.weekStart, weeks: p.weeks, activities: p.activities, rhythmHours: rhythm.hours, plan }).cap;
   const weekTargetH = plan?.targetHours ?? 0;
   let status: ProgressStatus = 'on-track';
   if (!done.length) status = 'start';
@@ -139,7 +138,7 @@ export function rebuildWeek(p: {
       if (w.phase === 'specific') specificCount++;
     }
   }
-  const lastLoad = p.weeks.filter((w) => w.kind === 'load' && w.weekStart < raceWeekOf(p.goal)).at(-1);
+  const lastLoad = p.weeks.filter((w) => (w.kind === 'load' || w.kind === 'block') && w.weekStart < raceWeekOf(p.goal)).at(-1);
   const week = { ...p.week, notes: [...p.week.notes] };
   const add = buildWeek(week, {
     settings: p.settings,
@@ -150,6 +149,7 @@ export function rebuildWeek(p: {
     intenseCount,
     specificCount,
     lastLoadBeforeTaper: lastLoad?.weekStart === p.week.weekStart && p.week.phase === 'specific',
+    nightPlanned: prior.some((w) => w.phase === 'specific' && w.kind === 'light'),
     now: p.now ?? Date.now(),
   });
   // Une séance identique déjà en place est gardée telle quelle (avec sa confirmation) : pas de bruit dans l'aperçu.

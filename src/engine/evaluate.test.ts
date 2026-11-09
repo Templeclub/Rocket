@@ -128,24 +128,28 @@ describe('suivi du programme', () => {
   });
 });
 
-describe('course à Paris : le 2e jour de présence, sinon rien', () => {
+describe('course : un jour à la maison d’abord, Paris seulement en dernier recours (2e jour)', () => {
   const runsOf = (days: string[]) => {
     const { sessions } = generatePlan({ startWeek: W, goal, settings: withParis(days), now: 0 });
     return sessions.filter((s) => s.date >= W && s.date <= '2026-11-22' && s.sport === 'run').map((s) => s.date);
   };
-  it('mardi-mercredi → course le mercredi', () => {
-    expect(runsOf(['2026-11-17', '2026-11-18'])).toEqual(['2026-11-18']);
+  it('Paris mardi-mercredi → course le vendredi (à la maison), pas à Paris', () => {
+    expect(runsOf(['2026-11-17', '2026-11-18'])).toEqual(['2026-11-20']);
   });
-  it('jeudi-vendredi-samedi → course le vendredi', () => {
-    expect(runsOf(['2026-11-19', '2026-11-20', '2026-11-21'])).toEqual(['2026-11-20']);
+  it('Paris jeudi-vendredi → course mardi ou mercredi (à la maison)', () => {
+    const r = runsOf(['2026-11-19', '2026-11-20']);
+    expect(r).toHaveLength(1);
+    expect(['2026-11-17', '2026-11-18']).toContain(r[0]);
   });
-  it('un seul jour à Paris → pas de course', () => {
-    expect(runsOf(['2026-11-19'])).toEqual([]);
+  it('Paris jeudi-vendredi → mardi et mercredi à la maison sont utilisés', () => {
+    const { sessions } = generatePlan({ startWeek: W, goal, settings: withParis(['2026-11-19', '2026-11-20']), now: 0 });
+    const used = sessions.filter((s) => s.date === '2026-11-17' || s.date === '2026-11-18');
+    expect(used).toHaveLength(2);
   });
   it('course générée le 1er jour de Paris → signalée', () => {
     const { sessions, weeks } = generatePlan({ startWeek: W, goal, settings: defaultSettings(), now: 0 });
-    const moved = sessions.map((s) => (s.sport === 'run' && s.date === '2026-11-18' ? { ...s, date: '2026-11-17' } : s));
+    const moved = sessions.map((s) => (s.sport === 'run' && s.date >= W && s.date <= '2026-11-22' ? { ...s, date: '2026-11-17' } : s));
     const issues = weekIssues({ weekStart: W, sessions: moved, settings: defaultSettings(), today: '2026-11-15', plan: weeks[0] });
-    expect(issues.some((i) => /2e jour/.test(i.text))).toBe(true);
+    expect(issues.some((i) => /2e jour|seul jour/.test(i.text))).toBe(true);
   });
 });

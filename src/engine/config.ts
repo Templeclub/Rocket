@@ -5,6 +5,9 @@ export const CONFIG = {
   appName: 'Ascèse',
   timeZone: 'Europe/Paris',
 
+  /** Version de la méthode de construction du plan (un programme plus ancien est à recalculer). */
+  planVersion: 2,
+
   /** Plan démarrant le lundi 9 novembre 2026. */
   planStart: '2026-11-09',
 
@@ -30,7 +33,7 @@ export const CONFIG = {
    */
   startVolume: {
     weeklyHours: 3,
-    peakWeeklyHours: 5.5,
+    peakWeeklyHours: 8,
     /** Foot inclus dans les anciennes valeurs (heures totales), retiré à la migration. */
     legacyFootballHours: 1.5,
     /** Plus longue sortie récente supposée, en minutes. */
@@ -58,6 +61,12 @@ export const CONFIG = {
     blockWeekMinPrevCompletion: 0.8,
     /** Au plus une semaine bloc toutes les N semaines, suivie d'une semaine allégée. */
     blockWeekEveryWeeks: 3,
+    /** En spécifique : bloc (week-end de 3 jours) une semaine sur deux, allégée entre deux. */
+    blockWeekEveryWeeksSpecific: 2,
+    /** Progression : la tendance monte de 10 % par semaine (les semaines allégées n'interrompent pas la tendance). */
+    weeklyGrowth: 1.1,
+    /** Le plan continue de monter tant que la dernière semaine de charge est faite à au moins ce ratio. */
+    followRatio: 0.8,
     /** Nombre minimal de jours de semaine en congé pour faire d'une semaine une semaine bloc. */
     blockWeekMinLeaveDays: 3,
     /** Sortie la plus longue ≤ plus longue des 4 dernières semaines + N minutes. */
@@ -134,10 +143,10 @@ export const CONFIG = {
       /** Seuils des niveaux (le dernier, Finisher, s'obtient en terminant l'objectif). */
       levels: [
         { name: 'Novice', xp: 0 },
-        { name: 'Pèlerin', xp: 5000 },
-        { name: 'Nomade', xp: 15000 },
-        { name: 'Méhariste', xp: 28000 },
-        { name: 'Ascète du désert', xp: 42000 },
+        { name: 'Pèlerin', xp: 6000 },
+        { name: 'Nomade', xp: 18000 },
+        { name: 'Méhariste', xp: 33000 },
+        { name: 'Ascète du désert', xp: 48000 },
       ],
       finisher: 'Finisher',
     },
@@ -181,6 +190,16 @@ export const CONFIG = {
     parisRunMin: [30, 40],
     /** Endurance optionnelle de semaine (minutes). */
     optionalWeekdayMin: 45,
+    /** Séance de semaine : durée minimale utile (minutes). */
+    minWeekdayMin: 45,
+    /** Samedi : environ cette part du volume de la semaine (sans dépasser le plafond de progression). */
+    saturdayShareOfWeek: 0.55,
+    /** Ce que le samedi laisse au dimanche et aux séances de semaine (minutes). */
+    weekRestAfterSaturdayMin: 150,
+    /** Dimanche (enchaînement) : au plus cette part de la sortie du samedi. */
+    sundayShareOfSaturday: 0.75,
+    /** Course à pied de la semaine (minutes), avant / à partir du développement. */
+    runMin: [35, 45],
     /** En dessous de ce reste (min), on renonce à la séance optionnelle de semaine. */
     minWeekendMin: 120,
     /** Au-delà de ce reste (min), on ajoute une sortie le dimanche. */
@@ -190,7 +209,7 @@ export const CONFIG = {
     /** Part du samedi dans un enchaînement de 2 jours (spécifique). */
     backToBackShare: 0.55,
     /** Répartition d'un bloc de 3 jours. */
-    blockShares: [0.35, 0.4, 0.25],
+    blockShares: [0.28, 0.44, 0.28],
     /** Durées arrondies à ce pas (minutes). */
     roundMin: 15,
     /** Vitesse moyenne gravel (km/h), normale et chargé. */
@@ -207,14 +226,15 @@ export const CONFIG = {
   /** Disponibilités par défaut (modifiables dans les paramètres). */
   availability: {
     /** 1 = lundi … 7 = dimanche ; minutes disponibles et jour à Paris. */
+    // minutes = le matin (7h30) ; evening = home-trainer le soir (soirs sans foot, à la maison).
     template: {
-      1: { minutes: 60, paris: false },
-      2: { minutes: 40, paris: true },
-      3: { minutes: 40, paris: true },
-      4: { minutes: 60, paris: false },
-      5: { minutes: 60, paris: false },
-      6: { minutes: 360, paris: false },
-      7: { minutes: 360, paris: false },
+      1: { minutes: 60, paris: false, evening: 0 },
+      2: { minutes: 60, paris: true, evening: 90 },
+      3: { minutes: 60, paris: true, evening: 90 },
+      4: { minutes: 60, paris: false, evening: 0 },
+      5: { minutes: 60, paris: false, evening: 90 },
+      6: { minutes: 360, paris: false, evening: 0 },
+      7: { minutes: 360, paris: false, evening: 0 },
     },
     weekdayMorningStart: '07:30',
     /** Lundi et jeudi : obligatoires sauf à Paris, prioritaires sur les autres séances. */

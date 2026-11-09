@@ -92,7 +92,10 @@ export function AvailabilitySection() {
 
   return (
     <Section title="Disponibilités">
-      <p className="text-xs text-muted">Minutes disponibles par jour (le matin en semaine). « Paris » = semaine type ; pour une semaine précise, touche les points en haut de la vue Semaine.</p>
+      <p className="text-xs text-muted">
+        Minutes disponibles le matin, et home-trainer le soir (jours à la maison sans foot). « Paris » = semaine type ; pour une semaine précise, touche les points en haut de la vue
+        Semaine.
+      </p>
       <div className="divide-y divide-line rounded-xl bg-raised">
         {DAYS.map((name, i) => {
           const wd = i + 1;
@@ -109,6 +112,19 @@ export function AvailabilitySection() {
                 aria-label={`Minutes disponibles ${name}`}
               />
               <span className="text-xs text-muted">min</span>
+              {wd <= 5 && (
+                <>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    className="w-16 h-9 rounded-md bg-surface text-right px-2"
+                    value={t.evening ?? 0}
+                    onChange={(e) => setDay(wd, { evening: Number(e.target.value) || 0 })}
+                    aria-label={`Home-trainer le soir ${name} (minutes)`}
+                  />
+                  <span className="text-xs text-muted">soir</span>
+                </>
+              )}
               {wd <= 5 && (
                 <label className="ml-auto flex items-center gap-1.5 text-sm">
                   <input type="checkbox" checked={t.paris} onChange={(e) => setDay(wd, { paris: e.target.checked })} className="w-5 h-5 accent-[var(--c-accent)]" />

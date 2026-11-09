@@ -11,7 +11,7 @@ import { IconPlus } from '../components/Icons';
 import { GoalHero } from '../components/GoalHero';
 import { ProgressStrip } from '../components/Progress';
 import { PhaseTimeline } from '../components/Phases';
-import { ProgramEmptyCard, ReminderBanner } from '../components/ProgramCards';
+import { ProgramEmptyCard, ProgramUpgradeCard, ReminderBanner } from '../components/ProgramCards';
 import { ActivityCard, SessionCard } from '../components/SessionCard';
 import { useWeekEvaluation, WeekEvaluationCard, WeekStrip } from '../components/WeekEvaluation';
 import { useNav, useSettings, useToday } from '../hooks';
@@ -85,6 +85,7 @@ export function WeekView({ weekStart, focusDate }: { weekStart: LocalDate; focus
       <GoalHero weekStart={weekStart} sessions={sessions} activities={activities} />
       <ProgressStrip />
       {weekCount === 0 && <ProgramEmptyCard />}
+      <ProgramUpgradeCard />
       <ReminderBanner />
       <PhaseTimeline current={weekStart} onWeek={(w) => nav.goWeekOf(w)} compact />
       <WeekStrip weekStart={weekStart} sessions={sessions} onDay={scrollTo} />

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { db } from '../../db/db';
 import { countManualFrom, generateProgram } from '../../db/program';
 import { addDays, labelShort, labelWeek, startOfWeek } from '../../engine/dates';
+import { CONFIG } from '../../engine/config';
 import { defaultStartWeek, KIND_LABEL, PHASE_LABEL } from '../../engine/planner';
 import { weekToConfirm } from '../../engine/review';
 import type { LocalDate } from '../../engine/types';
@@ -109,6 +110,26 @@ export function WeekPlanHeader({ weekStart }: { weekStart: LocalDate }) {
           </button>
         )}
       </div>
+    </section>
+  );
+}
+
+/** Programme construit avec une ancienne méthode : proposer de le recalculer (le réalisé est gardé). */
+export function ProgramUpgradeCard() {
+  const today = useToday();
+  const outdated = useLiveQuery(async () => (await db.weeks.where('weekStart').aboveOrEqual(startOfWeek(today)).toArray()).some((w) => (w.version ?? 1) < CONFIG.planVersion), [today]);
+  const gen = useGenerate();
+  if (!outdated) return null;
+  return (
+    <section className="rounded-2xl bg-surface card-shadow border border-accent/40 p-3.5 space-y-2">
+      <h2 className="font-display font-bold">Nouvelle méthode de planification</h2>
+      <p className="text-sm text-muted">
+        Plus de vélo : progression vers 8 h d’endurance, home-trainer le soir les jours à la maison, sorties longues jusqu’à près de 5 h, 3 longs week-ends en spécifique,
+        course d’abord à la maison. Ton réalisé et tes séances ajoutées à la main sont gardés ; les séances proposées à venir sont remplacées.
+      </p>
+      <button disabled={gen.busy} onClick={() => gen.run()} className="w-full h-11 rounded-xl bg-sport font-semibold">
+        {gen.busy ? 'Calcul…' : 'Recalculer mon programme'}
+      </button>
     </section>
   );
 }

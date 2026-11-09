@@ -61,7 +61,7 @@ export function defaultSettings(): AppSettings {
     id: 'app',
     profile: { ...CONFIG.profile },
     availability: defaultAvailability(),
-    volume: { startWeeklyHours: CONFIG.startVolume.weeklyHours, peakWeeklyHours: CONFIG.startVolume.peakWeeklyHours, basis: 'endurance' },
+    volume: { startWeeklyHours: CONFIG.startVolume.weeklyHours, peakWeeklyHours: CONFIG.startVolume.peakWeeklyHours, basis: 'endurance', method: CONFIG.planVersion },
     powerZoneUpperPct: [...CONFIG.powerZoneUpperPct],
     hrZoneBoundsPct: [...CONFIG.hrZoneBoundsPct],
   };
@@ -86,6 +86,18 @@ export function withDefaults(s: Partial<AppSettings> | undefined): AppSettings {
       peakWeeklyHours: Math.max(1.5, s.volume.peakWeeklyHours - f),
       basis: 'endurance',
     };
+  }
+  // Méthode v2 : pic d'endurance à 8 h (au lieu de 5h30) et semaine type avec home-trainer le soir.
+  if ((volume.method ?? 1) < 2) {
+    if (volume.peakWeeklyHours === 5.5) volume.peakWeeklyHours = CONFIG.startVolume.peakWeeklyHours;
+    const t = { ...availability.template };
+    for (const [k, def] of Object.entries(d.availability.template)) {
+      const cur = t[Number(k)];
+      if (!cur) t[Number(k)] = { ...def };
+      else t[Number(k)] = { ...cur, minutes: cur.paris && cur.minutes === 40 ? def.minutes : cur.minutes, evening: cur.evening ?? def.evening };
+    }
+    availability.template = t;
+    volume.method = CONFIG.planVersion;
   }
   return { ...d, ...s, id: 'app', profile: { ...d.profile, ...s.profile }, availability, volume };
 }

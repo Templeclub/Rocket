@@ -229,7 +229,7 @@ describe('import Strava', () => {
       sa(1, 'Football', 'Workout', '2026-11-09', { moving_time: 4800 }),
       sa(2, 'Rouvy - Ventoux', 'VirtualRide', '2026-11-14', { trainer: true, moving_time: 3000 }),
       sa(3, 'Marche', 'Walk', '2026-11-12'),
-      sa(4, 'Footing', 'Run', '2026-11-13'),
+      sa(4, 'Footing', 'Run', '2026-11-11'),
     ];
     const r = await importStravaActivities(list, d);
     expect(r).toMatchObject({ fetched: 4, imported: 3, linked: 2 });
@@ -238,7 +238,7 @@ describe('import Strava', () => {
     expect(foot).toMatchObject({ sport: 'football', status: 'done', confirmed: true });
     // Sortie extérieure de 2h15 prévue samedi, faite en 50 min sur Rouvy : séance faite quand même
     expect((await d.sessions.where('date').equals('2026-11-14').first())!.status).toBe('done');
-    // Footing un vendredi sans séance de course prévue : activité non prévue
+    // Footing un mercredi (Paris, rien de prévu) : activité non prévue
     const run = (await d.activities.where('externalId').equals('strava:4').first())!;
     expect(run.plannedSessionId).toBeUndefined();
     // Deuxième synchronisation : rien de neuf

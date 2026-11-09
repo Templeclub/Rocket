@@ -89,14 +89,14 @@ describe('points et niveaux', () => {
     expect(gameState(input('2027-04-12', { ...d, activities: [...d.activities, race] })).xp.level.name).toBe('Finisher');
   });
   it('progression vers le niveau suivant', () => {
-    const l = levelFor(10000);
+    const l = levelFor(12000);
     expect(l).toMatchObject({ name: 'Pèlerin', nextName: 'Nomade' });
     expect(l.progress).toBeCloseTo(0.5);
   });
 });
 
 describe('jauge de préparation', () => {
-  it('honnête : au départ, bas ; plan suivi, monte ; jamais 100 % avec un pic à 5h30', () => {
+  it('honnête : au départ, bas ; plan suivi, monte vers 90 % sans atteindre 100 % (sortie de 6 h non prévue)', () => {
     const start = gameState(input('2026-11-09', { sessions: plan.sessions, activities: [] })).readiness;
     const mid = gameState(input('2027-02-01', doneUpTo('2027-02-01'))).readiness;
     const end = gameState(input('2027-04-05', doneUpTo('2027-04-05'))).readiness;
@@ -104,7 +104,8 @@ describe('jauge de préparation', () => {
     expect(start.estimated).toBe(true);
     expect(mid.percent).toBeGreaterThan(start.percent);
     expect(end.percent).toBeGreaterThan(mid.percent);
-    expect(end.percent).toBeLessThan(80);
+    expect(end.percent).toBeGreaterThan(80);
+    expect(end.percent).toBeLessThan(100);
   });
   it('chaque composante explique ses points et la prochaine marche', () => {
     const r = gameState(input('2026-12-01', doneUpTo('2026-12-01'))).readiness;

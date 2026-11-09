@@ -99,6 +99,25 @@ export interface WeekReview {
   items: ReviewItem[];
 }
 
+/**
+ * Plafond de volume (R3, méthode v2) : tant que je suis le plan (dernière semaine de charge faite à 80 % ou plus),
+ * le plan peut continuer de monter jusqu'à sa cible ; sinon, retour au rythme réel × 1,10 (× 1,30 en bloc).
+ */
+export function volumeCap(p: { before: LocalDate; weeks: WeekPlan[]; activities: Activity[]; rhythmHours: number; plan?: WeekPlan }): {
+  cap: number;
+  following: boolean;
+  lastRatio: number | null;
+} {
+  const factor = p.plan?.kind === 'block' ? R.blockWeekCap : R.weeklyVolumeCap;
+  const last = [...p.weeks]
+    .filter((w) => w.weekStart < p.before && (w.kind === 'load' || w.kind === 'block') && !w.excluded)
+    .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
+  const lastRatio = last && last.targetHours > 0 ? weekDone(p.activities, last.weekStart).hours / last.targetHours : null;
+  const following = lastRatio === null || lastRatio >= R.followRatio;
+  const base = p.rhythmHours * factor;
+  return { cap: following ? Math.max(base, p.plan?.targetHours ?? 0) : base, following, lastRatio };
+}
+
 /** Séance intense (R7) : RPE élevé, bloc au-dessus du sweet spot ou en zone 4+. */
 export function isIntense(s: PlannedSession): boolean {
   if (s.sport === 'football' || s.sport === 'enduro') return false;
@@ -190,7 +209,8 @@ export function buildReview(p: {
     planStart: p.planStart ?? CONFIG.planStart,
   });
   const capFactor = plan?.kind === 'block' ? R.blockWeekCap : R.weeklyVolumeCap;
-  const cap = rhythm.hours * capFactor;
+  const vc = volumeCap({ before: targetWeek, weeks: p.weeks, activities: p.activities, rhythmHours: rhythm.hours, plan });
+  const cap = vc.cap;
   const plannedHours = hours(target);
   const items: ReviewItem[] = [];
 
@@ -228,7 +248,9 @@ export function buildReview(p: {
       items.push({
         id: `reduce:${targetWeek}`,
         type: 'reduce-volume',
-        text: `Volume prévu ${h(plannedHours)} au-dessus du plafond ${h(cap)} (rythme réel ${h(rhythm.hours)} × ${String(capFactor).replace('.', ',')}). Je propose de ${r.names.join(', puis ')} : ${h(r.after)}.`,
+        text: `Volume prévu ${h(plannedHours)} au-dessus du plafond ${h(cap)} : ${
+          vc.lastRatio !== null ? `ta dernière semaine de charge est faite à ${Math.round(vc.lastRatio * 100)} % (moins de ${Math.round(R.followRatio * 100)} %), ` : ''
+        }on revient au rythme réel ${h(rhythm.hours)} × ${String(capFactor).replace('.', ',')}. Je propose de ${r.names.join(', puis ')} : ${h(r.after)}.`,
         justification: { metric: 'volume prévu', value: plannedHours, threshold: cap, unit: 'h' },
         choices: [{ label: 'Alléger la semaine', actions: r.actions }],
       });

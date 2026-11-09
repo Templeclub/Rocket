@@ -5,7 +5,7 @@
 PWA personnelle de planification d’entraînement vers le **Desertus Bikus** (10 avril 2027, 1 300 km, 13 000 m D+, 7 jours max).
 Mobile Android, une main, en français, données locales uniquement, fuseau Europe/Paris.
 
-**État : `main` à jour (thème, sauvegarde en ligne). Motivation (jauge, semaines tenues, niveaux, célébrations) sur la branche `gamification`.**
+**État : `main` à jour (motivation comprise). Méthode de planification v2 sur la branche `methode-v2`.**
 
 ## Utilisation
 
@@ -100,16 +100,16 @@ Deux affichages : **Séances** (un point par séance, plein si faite, rouge si n
 
 | Période | Phase | Semaines |
 |---|---|---|
-| 9 nov → 28 déc | Base | charge, allégée le 23 nov et le 14 déc, **bloc des congés** du 28 déc (3 jours enchaînés) |
-| 4 janv → 8 févr | Développement | allégée le 4 janv et le 1er févr, **voyage course uniquement** du 8 févr |
-| 15 févr → 22 mars | Spécifique | voyage jusqu’au 20 févr, reprise, sortie chargée, sortie qui finit de nuit, **bloc de 3 jours** le 12–14 mars (pose ton vendredi), répétition générale 27–28 mars |
+| 9 nov → 28 déc | Base | charge, allégée le 23 nov et le 14 déc, **bloc des congés** du 1er au 3 janv (3 longues journées, sans foot pendant les congés) |
+| 4 janv → 8 févr | Développement | montée vers **8 h d’endurance** (7h de vélo) fin janvier, allégée le 4 janv et le 1er févr, **voyage course uniquement** du 6 au 20 févr |
+| 15 févr → 28 mars | Spécifique | **3 longs week-ends de 3 jours** (pose les vendredis 26 févr, 12 mars et 26 mars) avec semaine allégée entre deux, sortie qui finit de nuit, vélo chargé, répétition générale le dernier |
 | 29 mars → 10 avril | Affûtage | déblocage, volume −40 % puis −65 %, pas de foot la semaine de l’objectif |
 
-Semaine type (Paris mardi-mercredi) : lundi foot, mercredi footing à Paris (toujours le 2e jour de présence ; aucune course si un seul jour à Paris ; variante natation), jeudi foot, vendredi endurance (dehors s’il fait jour), samedi sortie longue avec la séance structurée intégrée (clé, variante home-trainer), dimanche seconde sortie si le volume le permet. Quand Paris tombe sur d’autres jours, la séance structurée revient un matin compatible (en home-trainer, mode ERG). En spécifique, le week-end enchaîne deux jours.
+Semaine type (Paris mardi-mercredi) : lundi et jeudi foot, vendredi à la maison (course, ou home-trainer le soir quand le volume le demande), samedi sortie longue avec la séance structurée intégrée (clé, variante home-trainer), dimanche seconde sortie. Quand Paris tombe sur d’autres jours, les jours à la maison libérés reçoivent la séance structurée (home-trainer, mode ERG, le matin ou le soir) et la course ; la course ne va à Paris (2e jour) qu’en dernier recours. Les jours à la maison sans foot acceptent un home-trainer le soir jusqu’à 1h30.
 
-Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) : de **3h15** (3h × 1,10, arrondi en dessous) jusqu’au pic de **5h30**, blocs jusqu’à **~7h**. Tes 4h30 et 7h incluaient un foot de 1h30 : ce sont 3h et 5h30 d’endurance, et le second foot de la semaine vient en plus.
+Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) — **méthode v2** : la tendance monte de 10 % par semaine (les semaines allégées sont un creux, pas un retour en arrière) jusqu’au pic de **8 h**, longs week-ends jusqu’à **~10 h**. Tant que la dernière semaine de charge est faite à 80 % ou plus, le plan continue ; sinon le plafond revient au rythme réel × 1,10. Sortie longue : +45 min par marche, environ 2h30 laissées au dimanche et à la semaine.
 
-> ⚠️ **Écart avec l’objectif.** La plus longue sortie plafonne vers 3h, alors que le Desertus demande environ 7 à 8 h de vélo par jour pendant 7 jours. Le plan respecte ta règle (le rythme réel prime) ; l’évaluation de la semaine propose de relever le pic dès que ton rythme le dépasse.
+> **Où en est la préparation.** Plan suivi à la lettre : 7 à 10 h de vélo par semaine de mi-janvier à fin mars, plus longue sortie ~4h45, 3 longs week-ends d’environ 10 h ; la jauge « Prêt pour le Desertus » finit vers 89 %. Ce qui manque encore : une sortie de 6 h et plus (à ajouter si tu poses une journée, idéalement une sortie test de 200 km début mars) et du dénivelé (1 500 m sur une sortie).
 
 ## Règles appliquées (valeurs dans `src/engine/config.ts`)
 
@@ -117,7 +117,7 @@ Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) : de **3
 |---|---|
 | R1 rythme réel sur 4 semaines (semaines allégées, voyage, affûtage et semaines exclues ignorées) | `review.ts` `realRhythm` |
 | R2 séance manquée : laisser tomber, ou déplacer si clé et semaine pas chargée ; jamais automatique | bilan |
-| R3 volume ≤ rythme × 1,10 (× 1,30 en semaine bloc) ; < 70 % deux semaines → baisser la cible | macro-plan + bilan |
+| R3 volume : le plan monte de 10 % par semaine tant que la dernière semaine de charge est faite à 80 % ; sinon ≤ rythme réel × 1,10 (× 1,30 en bloc) ; < 70 % deux semaines → baisser la cible | macro-plan + bilan |
 | R4 1 à 2 séances clés, les optionnelles sacrifiées en premier | construction + bilan |
 | R5 semaine allégée −30 % toutes les 3 à 4 semaines | macro-plan |
 | R6 alerte extérieur / home-trainer / extérieur (montage 10 min) | bilan |
@@ -131,7 +131,7 @@ Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) : de **3
 ```bash
 npm install
 npm run dev        # serveur local
-npm test           # tests unitaires (Vitest) : 164 tests
+npm test           # tests unitaires (Vitest) : 171 tests
 npm run build      # vérification TypeScript + build PWA
 npm run icons      # régénère les icônes PNG depuis public/favicon.svg
 ```
@@ -167,7 +167,7 @@ src/ui/            vues Semaine, Mois, Paramètres, fiche séance, bilan
 
 | Sujet | Décision |
 |---|---|
-| Volume | En heures d’**endurance** : 3h au départ, pic 5h30 (tes 4h30 / 7h moins un foot de 1h30). Le foot s’ajoute. |
+| Volume | En heures d’**endurance** : 3h au départ, **pic 8h** (méthode v2), le foot s’ajoute. Home-trainer le soir possible les jours à la maison. |
 | Plafond | rythme réel × 1,10 ; semaine bloc × 1,30 (congés, ou vendredi posé en spécifique), au plus 1 toutes les 3 semaines, suivie d’une allégée. |
 | Home-trainer | Rouvy, montage 10 min. Export `.zwo`/`.mrc` : à faire (voir ci-dessous). |
 | Disponibilités | 7h30–8h30 en semaine ; Paris mardi-mercredi par défaut, réglable semaine par semaine (course seulement) ; **foot lundi et jeudi obligatoire sauf à Paris, prioritaire** ; week-end jusqu’à 6 h/jour ; pas de double séance. |

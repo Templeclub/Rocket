@@ -25,7 +25,6 @@ import {
   htOpeners,
   longRide,
   outdoorEndurance,
-  roundTo,
   run,
   swim,
   trainerVariant,
@@ -92,7 +91,8 @@ export function footballDaysOf(weekStart: LocalDate, a: Availability): LocalDate
   const paris = new Set(parisDaysOf(weekStart, a));
   return weekDays(weekStart).filter((d) => {
     const exc = dayException(d, a);
-    return a.footballDays.includes(isoWeekday(d)) && !paris.has(d) && exc !== 'runOnly' && exc !== 'unavailable';
+    // Pas de foot à Paris, en voyage ni pendant les congés (club en pause) : à ajouter à la main si je joue.
+    return a.footballDays.includes(isoWeekday(d)) && !paris.has(d) && exc === null;
   });
 }
 
@@ -133,8 +133,6 @@ export interface PlanInput {
   now?: number;
 }
 
-const round025 = (h: number) => Math.round(h * 4) / 4;
-
 /** Phase, type et volume cible de chaque semaine, de la semaine de départ à celle de l'objectif. */
 export function macroPlan(input: PlanInput): WeekPlan[] {
   const { settings, goal } = input;
@@ -156,9 +154,15 @@ export function macroPlan(input: PlanInput): WeekPlan[] {
   } else {
     streak = Math.max(0, diffDays(input.startWeek, R.lastLightWeek) / 7 - 1);
   }
-  const rhythm = [...(input.history?.rhythmHours ?? [])];
-  while (rhythm.length < R.rollingWeeks) rhythm.unshift(settings.volume.startWeeklyHours);
-  let lastLoad = prior.filter((w) => w.kind === 'load').at(-1)?.targetHours ?? rhythm.at(-1)!;
+  // Niveau de départ : rythme réel connu (régénération), sinon dernière charge prévue, sinon valeur de départ.
+  const real = input.history?.rhythmHours?.length
+    ? input.history.rhythmHours.slice(-R.rollingWeeks).reduce((t, x) => t + x, 0) / Math.min(R.rollingWeeks, input.history.rhythmHours.length)
+    : undefined;
+  const priorLoad = prior.filter((w) => w.kind === 'load').at(-1)?.targetHours;
+  // Tendance : monte de 10 % chaque semaine (hors voyage), plafonnée au pic ; les semaines allégées sont un creux, pas un retour en arrière.
+  let level = real ?? (priorLoad ? priorLoad : settings.volume.startWeeklyHours);
+  if (!real && !priorLoad) level = settings.volume.startWeeklyHours / R.weeklyGrowth; // la 1re semaine vaut départ × 1,10
+  if (priorLoad && !real) level = priorLoad;
 
   const weeks: WeekPlan[] = [];
   for (let i = 0, w = input.startWeek; w <= raceWeek; i++, w = addDays(w, 7)) {
@@ -166,61 +170,63 @@ export function macroPlan(input: PlanInput): WeekPlan[] {
     const notes: string[] = [];
     let kind: WeekKind;
     const sinceBlock = i - lastBlockIdx;
-    const blockAllowed = sinceBlock >= R.blockWeekEveryWeeks;
+    const every = phase === 'specific' ? R.blockWeekEveryWeeksSpecific : R.blockWeekEveryWeeks;
+    const blockAllowed = sinceBlock >= every;
     const leaveBlockSoon = [1, 2].some((k) => isLeaveBlockWeek(addDays(w, 7 * k), a));
 
     if (w === raceWeek) kind = 'race';
     else if (phase === 'taper') kind = 'taper';
     else if (isTravelWeek(w, a)) kind = 'travel';
     else if (prevKind === 'block') kind = 'light';
+    // Spécifique : un long week-end de 3 jours une semaine sur deux (3 week-ends prolongés entre fin février et fin mars).
+    else if (phase === 'specific' && blockAllowed) kind = 'block';
     else if (streak >= R.lightWeekEveryMax - 1) kind = 'light';
-    else if (blockAllowed && (isLeaveBlockWeek(w, a) || (phase === 'specific' && streak === R.lightWeekEveryMin - 1))) kind = 'block';
+    else if (blockAllowed && isLeaveBlockWeek(w, a)) kind = 'block';
     else if (streak >= R.lightWeekEveryMin - 1 && leaveBlockSoon) {
       kind = 'light';
       notes.push('Allégée une semaine plus tôt pour arriver frais sur le bloc des congés.');
     } else kind = 'load';
 
-    const r = rhythm.slice(-R.rollingWeeks).reduce((s, x) => s + x, 0) / R.rollingWeeks;
+    if (kind !== 'travel' && kind !== 'race' && kind !== 'taper') level = Math.min(level * R.weeklyGrowth, peak);
     let target: number;
     switch (kind) {
       case 'load':
-        target = Math.min(r * (prevKind === 'travel' ? P.reentryFactor : R.weeklyVolumeCap), peak);
+        target = prevKind === 'travel' ? level * P.reentryFactor : level;
         if (prevKind === 'travel') notes.push('Reprise après le voyage : volume contenu.');
         break;
       case 'block':
-        target = Math.min(r * R.blockWeekCap, peak * R.blockWeekCap);
+        // Juste après le voyage : pas de surcharge, le long week-end reprend le volume de charge.
+        target = prevKind === 'travel' ? level * P.reentryFactor : Math.min(level * R.blockWeekCap, peak * R.blockWeekCap);
         notes.push(
           isLeaveBlockWeek(w, a)
-            ? 'Semaine bloc sur les congés : enchaînement de 3 jours.'
-            : 'Semaine bloc : pose ton vendredi pour enchaîner 3 jours (sinon décale la séance du vendredi).',
+            ? 'Semaine bloc sur les congés : 3 longues journées enchaînées.'
+            : 'Long week-end : pose ton vendredi pour enchaîner 3 longues journées (sinon décale la sortie du vendredi).',
         );
+        if (prevKind === 'travel') notes.push('Reprise après le voyage : journées en endurance, sans forcer.');
         break;
       case 'light':
-        target = lastLoad * P.lightFactor;
+        target = level * P.lightFactor;
         break;
       case 'travel':
-        target = P.travelRunsMin.reduce((s, x) => s + x, 0) / 60;
+        target = P.travelRunsMin.reduce((t, x) => t + x, 0) / 60;
         notes.push('À l’étranger : course à pied uniquement, pas de foot.');
         break;
       case 'taper':
-        target = lastLoad * P.taperFactor;
+        target = level * P.taperFactor;
         break;
       case 'race':
-        target = lastLoad * P.raceWeekFactor;
-        notes.push('Semaine de l’objectif : déblocage léger, repos ; foot à J-2 déconseillé.');
+        target = level * P.raceWeekFactor;
+        notes.push('Semaine de l’objectif : déblocage léger, repos ; pas de foot à J-2.');
         break;
     }
-    // Charge et bloc : arrondi au quart d'heure inférieur pour rester sous le plafond (R3).
-    target = kind === 'load' || kind === 'block' ? Math.floor(target * 4 + 1e-9) / 4 : round025(target);
+    target = Math.floor(target * 4 + 1e-9) / 4;
 
     if (kind === 'load' || kind === 'block') {
-      rhythm.push(target);
       streak++;
-      if (kind === 'load') lastLoad = target;
       if (kind === 'block') lastBlockIdx = i;
     } else streak = 0;
     prevKind = kind;
-    weeks.push({ weekStart: w, phase, kind, targetHours: target, longRideMin: 0, notes, generatedAt: now });
+    weeks.push({ weekStart: w, phase, kind, targetHours: target, longRideMin: 0, notes, generatedAt: now, version: CONFIG.planVersion });
   }
   return weeks;
 }
@@ -248,8 +254,10 @@ interface BuildCtx {
   intenseCount: Record<Phase, number>;
   /** Nombre de semaines de charge ou bloc déjà générées en spécifique. */
   specificCount: number;
-  /** Dernière semaine de charge avant l'affûtage ? */
+  /** Dernière semaine de charge (ou long week-end) avant l'affûtage ? */
   lastLoadBeforeTaper: boolean;
+  /** La sortie de nuit est-elle déjà prévue ? */
+  nightPlanned?: boolean;
   now: number;
 }
 
@@ -278,29 +286,24 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
     const t = a.template[wd] ?? { minutes: 0, paris: false };
     const exc = dayException(date, a);
     const inParis = paris.has(date) && exc !== 'runOnly' && exc !== 'unavailable';
-    // À Paris : course uniquement, avec le temps du matin (au moins 40 min).
-    const minutes = inParis ? Math.max(40, t.paris ? t.minutes : 40) : exc === 'leave' ? P.weekendMaxMin : t.minutes;
-    return { date, wd, exc, minutes, paris: inParis };
+    // Capacité d'un jour de semaine à la maison : le plus long du matin (7h30) ou du home-trainer le soir.
+    const home = exc === 'leave' ? P.weekendMaxMin : Math.max(t.minutes, wd <= 5 ? t.evening ?? 0 : 0);
+    return { date, wd, exc, minutes: inParis ? 40 : home, paris: inParis };
   });
   const out: PlannedSession[] = [];
   const add = (c: SessionContent, d: Day, alt?: SessionContent) => out.push(session(c, d.date, now, alt));
   const used = new Set<LocalDate>(ctx.occupied ?? []);
   const take = (d: Day | undefined) => (d ? (used.add(d.date), d) : undefined);
   const phase = week.phase;
+  const tmpl = (d: Day) => a.template[d.wd] ?? { minutes: 0, paris: false };
 
   // Football : lundi et jeudi, obligatoires sauf à Paris ou en voyage, prioritaires ce jour-là.
-  // La semaine de l'objectif, le foot à J-2 est proposé en optionnel (risque de blessure).
-  const footDays = week.kind === 'travel' ? [] : footballDaysOf(week.weekStart, a);
-  const footWds: number[] = [];
+  // Semaine de l'objectif : pas de foot dans les 3 jours avant le départ (risque de blessure).
+  const footDays = week.kind === 'travel' ? [] : footballDaysOf(week.weekStart, a).filter((d) => !(week.kind === 'race' && diffDays(ctx.goal.date, d) <= 3));
+  const footWds = footDays.map((d) => isoWeekday(d));
   for (const fd of footDays) {
     const d = days.find((x) => x.date === fd)!;
-    footWds.push(d.wd);
-    if (used.has(d.date)) continue;
-    const c = football(a.footballMin);
-    if (week.kind === 'race' && diffDays(ctx.goal.date, d.date) <= 3) {
-      c.notes = 'À quelques jours du départ : je te conseille de t’abstenir (risque de blessure).';
-    }
-    add(c, take(d)!);
+    if (!used.has(d.date)) add(football(a.footballMin), take(d)!);
   }
   let budget = Math.round(week.targetHours * 60) - (ctx.keptMin ?? 0);
 
@@ -315,15 +318,30 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
     return finish(out, week);
   }
 
-  // Séance structurée : premier matin libre, pas la veille ni le lendemain du foot (R7).
-  const morning = (d: Day) => !used.has(d.date) && d.wd <= 5 && (d.exc === null || d.exc === 'leave') && !d.paris && d.minutes >= 45;
+  /** Jour de semaine à la maison, libre (hors Paris, foot, voyage). */
+  const homeDay = (d: Day) => !used.has(d.date) && d.wd <= 5 && (d.exc === null || d.exc === 'leave') && !d.paris && d.minutes >= P.minWeekdayMin;
   /** Extérieur possible : congé (en journée) ou séance du matin entièrement de jour (R8). */
-  const daylightOk = (d: Day, m: number) => d.exc === 'leave' || fitsInDaylight(d.date, startMin, m);
+  const daylightOk = (d: Day, m: number) => d.exc === 'leave' || (m <= tmpl(d).minutes && fitsInDaylight(d.date, startMin, m));
+  const eveningNote = (d: Day, m: number) => (d.exc !== 'leave' && m > tmpl(d).minutes ? 'Le soir sur le home-trainer.' : undefined);
   const notNearFootball = (d: Day) => footWds.every((f) => Math.abs(d.wd - f) > R.footballBufferDays);
-  const intenseDay = take(days.find((d) => morning(d) && notNearFootball(d)));
+  /** Endurance de semaine : dehors le matin s'il fait jour, sinon home-trainer (le soir si plus long que le matin). */
+  const weekdayEndurance = (d: Day, m: number) => {
+    if (daylightOk(d, m)) add(outdoorEndurance(m, phase), take(d)!, htEndurance(m));
+    else {
+      const c = htEndurance(m);
+      c.notes = eveningNote(d, m);
+      add(c, take(d)!);
+    }
+  };
 
+  const light = week.kind === 'light';
+  const taper = week.kind === 'taper';
+  const block = week.kind === 'block';
+
+  // Semaine de l'objectif : déblocage en début de semaine, activation la veille du départ.
   if (week.kind === 'race') {
-    if (intenseDay) add(htOpeners(Math.min(45, intenseDay.minutes)), intenseDay);
+    const k = take(days.find((d) => homeDay(d) && notNearFootball(d)));
+    if (k) add(htOpeners(Math.min(45, k.minutes)), k);
     const fri = days.find((d) => d.wd === 5 && !used.has(d.date) && canBike(d));
     if (fri) {
       const outdoor = daylightOk(fri, 30);
@@ -332,135 +350,135 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
     return finish(out, week);
   }
 
-  const light = week.kind === 'light';
-  const taper = week.kind === 'taper';
-  const block = week.kind === 'block';
-  const keyMin = Math.min(P.keyWeekdayMin, intenseDay?.minutes ?? 0);
-  // Aucun matin compatible avec le foot : la séance structurée est intégrée à la sortie du samedi.
-  const effortsInRide = !intenseDay && !light;
+  // 1. Séance structurée (clé) : un jour à la maison, pas à côté du foot (R7). Sinon, intégrée au samedi.
+  // Long week-end : tout le volume va aux 3 journées (pas de séance structurée ni de course cette semaine-là).
+  const intenseDay = !light && !block ? take(days.find((d) => homeDay(d) && notNearFootball(d))) : undefined;
   if (intenseDay) {
-    if (light) add(htEndurance(45), intenseDay);
-    else {
-      const c = taper ? htOpeners(keyMin) : htIntense(phase, ctx.intenseCount[phase]++, keyMin);
-      // Dans une semaine bloc ou un enchaînement, la séance structurée devient optionnelle (R4 : 2 clés max).
-      if (block || phase === 'specific') c.priority = 'optional';
-      add(c, intenseDay);
-    }
-    budget -= light ? 45 : keyMin;
+    const keyMin = Math.min(P.keyWeekdayMin, intenseDay.minutes);
+    const c = taper ? htOpeners(keyMin) : htIntense(phase, ctx.intenseCount[phase]++, keyMin);
+    // Bloc ou spécifique : le week-end porte les clés, la séance structurée devient optionnelle (R4 : 2 clés max).
+    if (block || phase === 'specific') c.priority = 'optional';
+    c.notes = [c.notes, eveningNote(intenseDay, keyMin)].filter(Boolean).join(' ') || undefined;
+    add(c, intenseDay);
+    budget -= keyMin;
   }
+  const effortsInRide = !intenseDay && !light && !block;
 
-  // Footing à Paris (avec variante natation) : toujours le 2e jour de présence ; une seule journée à Paris → pas de course.
-  const runDate = parisRunDay(week.weekStart, a);
-  const parisDay = take(days.find((d) => d.date === runDate && !used.has(d.date) && d.minutes >= 20));
-  let runMin = 0;
-  if (parisDay) {
-    runMin = Math.min(parisDay.minutes, phase === 'base' || light || taper ? P.parisRunMin[0] : P.parisRunMin[1]);
-  }
+  // 2. Course à pied (gardée) : réservée maintenant, placée après le vélo (un jour à la maison en priorité, Paris en dernier recours).
+  const runMin = block ? 0 : phase === 'base' || light || taper ? P.runMin[0] : P.runMin[1];
+  budget -= runMin;
 
-  // Endurance optionnelle de semaine (pas pendant une semaine allégée ou d'affûtage).
-  const blockFirstDay = block ? days.find((d) => d.wd === 5 && !used.has(d.date) && canBike(d)) : undefined;
-  // En spécifique, le week-end enchaîné prime : pas d'endurance optionnelle en semaine.
-  let optDay = !light && !taper && phase !== 'specific' ? days.find((d) => morning(d) && d !== blockFirstDay) : undefined;
-  let optMin = optDay ? Math.min(P.optionalWeekdayMin, optDay.minutes) : 0;
-
-  let rest = budget - runMin - optMin;
-  if (rest < P.minWeekendMin && optMin) {
-    rest += optMin;
-    optMin = 0;
-    optDay = undefined;
-  }
-  if (rest < P.minWeekendMin && runMin) {
-    rest += runMin;
-    runMin = 0;
-  }
-  if (parisDay && runMin) add(run(runMin), parisDay, swim(runMin));
-  if (optDay && optMin) {
-    take(optDay);
-    const outdoor = daylightOk(optDay, optMin);
-    add(outdoor ? outdoorEndurance(optMin, phase) : htEndurance(optMin), optDay, outdoor ? htEndurance(optMin) : undefined);
-  }
-
-  // Week-end : sortie longue, enchaînement ou bloc.
+  // 3. Week-end : sortie longue, enchaînement ou long week-end de 3 jours.
   const longCap = Math.min(ctx.longest + R.longestRideIncreaseMin, P.weekendMaxMin);
   const sat = days.find((d) => d.wd === 6 && isFreeDay(d) && !used.has(d.date));
   const sun = days.find((d) => d.wd === 7 && isFreeDay(d) && !used.has(d.date));
+  const blockFirstDay = block ? days.find((d) => d.wd === 5 && !used.has(d.date) && canBike(d)) : undefined;
   const rides: { day: Day; min: number; opts: Parameters<typeof longRide>[2] }[] = [];
-  rest = Math.max(rest, 0);
-
+  let rest = Math.max(budget, 0);
   const specialIdx = phase === 'specific' && (week.kind === 'load' || block) ? ctx.specificCount++ : -1;
-  const loaded = specialIdx === 0 || block || ctx.lastLoadBeforeTaper;
+  const loaded = phase === 'specific' && (specialIdx === 0 || block || ctx.lastLoadBeforeTaper);
+  const round = (m: number) => Math.max(0, Math.floor(m / P.roundMin) * P.roundMin);
 
   if (block && sat && sun) {
     const days3 = blockFirstDay ? [blockFirstDay, sat, sun] : [sat, sun];
     const shares = blockFirstDay ? P.blockShares : [P.backToBackShare, 1 - P.backToBackShare];
+    // Samedi le plus long (plafonné), les deux autres jours un peu moins.
+    const satMin = Math.min(round(rest * shares[days3.length === 3 ? 1 : 0]), longCap);
     days3.forEach((d, i) => {
-      const m = Math.min(roundTo(rest * shares[i]), longCap);
+      const isSat = d === sat;
+      const m = isSat ? satMin : Math.min(round(rest * shares[i]), satMin);
+      take(d);
       rides.push({
         day: d,
         min: m,
         opts: {
-          title: `Bloc J${i + 1}${loaded && phase === 'specific' ? ' chargé' : ''}`,
-          loaded: loaded && phase === 'specific',
+          title: ctx.lastLoadBeforeTaper ? `Répétition générale J${i + 1}` : `Bloc J${i + 1}${loaded ? ' chargé' : ''}`,
+          loaded,
           note: i === 0 && d === blockFirstDay && d.exc !== 'leave' ? 'Jour à poser (congé ou RTT).' : i > 0 ? 'Enchaînement : rester en Z2, tester la récupération et l’alimentation.' : undefined,
         },
       });
     });
-  } else if (phase === 'specific' && !light && !taper && sat && sun && rest >= 180) {
-    const s1 = Math.min(roundTo(rest * P.backToBackShare), longCap);
-    const s2 = Math.min(roundTo(rest - s1), s1);
-    const lastBeforeTaper = ctx.lastLoadBeforeTaper;
-    rides.push({
-      day: sat,
-      min: s1,
-      opts: {
-        title: lastBeforeTaper ? 'Répétition générale J1' : specialIdx === 1 ? 'Sortie longue qui finit de nuit' : loaded ? 'Sortie longue chargée' : 'Enchaînement J1',
-        loaded,
-        nightSunset: specialIdx === 1 ? daylight(sat.date).sunset : undefined,
-      },
-    });
-    rides.push({
-      day: sun,
-      min: s2,
-      opts: {
-        title: lastBeforeTaper ? 'Répétition générale J2' : 'Enchaînement J2',
-        loaded: lastBeforeTaper,
-        note: 'Lendemain de sortie longue : rester en Z2, tester la récupération.',
-      },
-    });
+    rest -= rides.reduce((t, r) => t + r.min, 0);
   } else if (sat) {
-    let s1 = rest;
-    let s2 = 0;
-    if (!light && sun && rest > P.secondWeekendRideAboveMin) {
-      s1 = roundTo(rest * P.saturdayShare);
-      s2 = rest - s1;
+    // Samedi : la sortie longue d'abord (c'est elle qui prépare au Desertus), sans écraser le reste de la semaine.
+    // Le samedi progresse de +45 min par marche ; il laisse environ 2h30 au dimanche et à la semaine quand le volume le permet.
+    const share = light ? rest * 0.6 : Math.max(rest * P.saturdayShareOfWeek, rest - P.weekRestAfterSaturdayMin);
+    const s1 = Math.min(round(Math.max(share, Math.min(rest, 150))), longCap);
+    take(sat);
+    // Sortie de nuit : la première semaine allégée du spécifique (volume modéré, on teste l'éclairage).
+    const night = phase === 'specific' && light && !ctx.nightPlanned;
+    if (night) ctx.nightPlanned = true;
+    const title = ctx.lastLoadBeforeTaper ? 'Répétition générale J1' : night ? 'Sortie longue qui finit de nuit' : undefined;
+    const efforts = effortsInRide && s1 >= 75 ? rideEfforts(phase, taper, ctx.intenseCount[phase]++) : undefined;
+    rides.push({ day: sat, min: s1, opts: { title, loaded, efforts, nightSunset: night ? daylight(sat.date).sunset : undefined } });
+    rest -= s1;
+    // Dimanche : enchaînement (en spécifique, c'est une clé).
+    if (sun && !light && rest >= 60) {
+      const s2 = Math.min(round(rest), round(s1 * P.sundayShareOfSaturday));
+      if (s2 >= 45) {
+        take(sun);
+        const b2b = phase === 'specific';
+        rides.push({
+          day: sun,
+          min: s2,
+          opts: {
+            title: ctx.lastLoadBeforeTaper ? 'Répétition générale J2' : b2b ? 'Enchaînement J2' : 'Endurance Z2 extérieur',
+            loaded: ctx.lastLoadBeforeTaper,
+            priority: b2b ? 'key' : 'optional',
+            note: b2b ? 'Lendemain de sortie longue : rester en Z2, tester la récupération.' : undefined,
+          },
+        });
+        rest -= s2;
+      }
     }
-    if (s1 > longCap) {
-      s2 += s1 - longCap;
-      s1 = longCap;
-    }
-    s1 = roundTo(s1);
-    s2 = s2 >= 45 && sun ? Math.min(roundTo(s2), s1) : 0;
-    if (s1 >= 30) {
-      const efforts = effortsInRide && s1 >= 75 ? rideEfforts(phase, taper, ctx.intenseCount[phase]++) : undefined;
-      rides.push({ day: sat, min: s1, opts: { loaded: specialIdx === 0 && phase === 'specific', efforts } });
-    }
-    if (s2 && sun) rides.push({ day: sun, min: s2, opts: { priority: 'optional', title: 'Endurance Z2 extérieur' } });
   }
 
-  // Week-end indisponible pour le vélo (voyage) : le volume restant devient une course.
-  if (!rides.length && rest >= 30) {
+  // 4. Endurance de semaine : jours à la maison restants (matin dehors s'il fait jour, sinon home-trainer, le soir si plus long).
+  const free = days.filter(homeDay);
+  for (const d of free) {
+    if (rest < P.minWeekdayMin) break;
+    // Garder un jour pour la course s'il n'y a pas d'autre solution qu'à Paris.
+    const m = Math.min(round(Math.min(rest, block ? 90 : d.minutes)), d.minutes);
+    if (m < P.minWeekdayMin) continue;
+    weekdayEndurance(d, m);
+    rest -= m;
+  }
+
+  // 5. Course : un jour à la maison encore libre, sinon le 2e jour à Paris, sinon le dimanche s'il est libre.
+  const runDay = !runMin ? undefined :
+    days.find(homeDay) ??
+    days.find((d) => d.date === parisRunDay(week.weekStart, a) && !used.has(d.date)) ??
+    (sun && !used.has(sun.date) ? sun : undefined);
+  if (runDay) add(run(runMin), take(runDay)!, swim(runMin));
+  else rest += runMin;
+
+  // Reste éventuel : rallonge le samedi (jusqu'au plafond), puis le dimanche (sans dépasser le samedi).
+  if (rest >= P.roundMin && rides.length && !block) {
+    const r1 = rides[0];
+    const add1 = Math.min(round(rest), longCap - r1.min);
+    if (add1 > 0) {
+      r1.min += add1;
+      rest -= add1;
+    }
+    const r2 = rides[1];
+    if (r2 && rest >= P.roundMin) r2.min = Math.min(r2.min + round(rest), r1.min);
+  }
+
+  // Week-end indisponible pour le vélo (voyage) : une course le week-end.
+  if (!rides.length && rest >= 30 && !runDay) {
     const d = days.find((x) => x.wd >= 6 && !used.has(x.date) && x.exc !== 'unavailable');
-    const m = Math.min(roundTo(rest), 50);
+    const m = Math.min(round(rest), 50);
     if (d) add(run(m, 'sortie longue'), take(d)!, swim(m));
   }
 
   for (const r of rides) {
+    if (r.min < 30) continue;
     const prio = r.opts?.priority ?? 'key';
     const c =
       prio === 'optional' && r.min < 150
         ? outdoorEndurance(r.min, phase, 'optional', r.opts?.title)
         : longRide(r.min, phase, { ...r.opts, priority: prio });
-    add(c, take(r.day)!, trainerVariant(r.min, prio));
+    add(c, r.day, trainerVariant(r.min, prio));
     ctx.longest = Math.max(ctx.longest, r.min);
   }
   return finish(out, week);
@@ -514,7 +532,7 @@ export function generatePlan(input: PlanInput): PlanOutput {
       if (w.phase === 'specific') specificCount++;
     }
   }
-  const lastLoadIdx = weeks.map((w) => w.kind).lastIndexOf('load');
+  const lastLoadIdx = weeks.map((w) => w.kind === 'load' || w.kind === 'block').lastIndexOf(true);
   const ctx: BuildCtx = {
     settings: input.settings,
     goal: input.goal,
