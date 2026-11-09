@@ -70,6 +70,8 @@ export async function postponeSession(id: string, date: LocalDate, today: LocalD
   const next = { ...postpone(s, date, today), confirmed: true };
   const undo = await snapshot(d, [id], []);
   await d.sessions.put(next);
+  // Jalon (sortie de 6 h) : sa date suit la séance.
+  if (s.milestone) await d.goals.update('milestone:long-ride', { date });
   return undo;
 }
 

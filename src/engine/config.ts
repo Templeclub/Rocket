@@ -152,6 +152,14 @@ export const CONFIG = {
     },
   },
 
+  /** Jalon : la sortie de 6 h et plus, à placer en mars. */
+  longRideMilestone: {
+    month: '2027-03',
+    defaultMin: 360,
+    choicesMin: [360, 420, 480, 540],
+    name: 'Sortie de 6 h',
+  },
+
   /** Suivi du programme (évaluation en haut de chaque semaine). */
   progress: {
     /** Semaines terminées prises en compte. */

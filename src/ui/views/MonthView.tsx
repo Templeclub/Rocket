@@ -7,7 +7,8 @@ import { SPORT_KEYS, SPORT_META, sportKey } from '../../engine/sports';
 import { summarize } from '../../engine/stats';
 import { isMissed } from '../../engine/status';
 import type { Activity, LocalDate, PlannedSession, SportKey } from '../../engine/types';
-import { formatHours } from '../../engine/zones';
+import { formatDuration, formatHours } from '../../engine/zones';
+import { LongRideCard } from '../components/LongRide';
 import { Segmented } from '../components/Form';
 import { PhaseTimeline, phaseColor, phaseSoft } from '../components/Phases';
 import { useNav, useToday } from '../hooks';
@@ -77,6 +78,7 @@ export function MonthView({ monthStart }: { monthStart: LocalDate }) {
 
   return (
     <div className="space-y-4">
+      <LongRideCard />
       <PhaseTimeline current={plans.find((p) => p.weekStart >= monthStart)?.weekStart ?? monthStart} onWeek={(w) => nav.goWeekOf(w)} />
       <Segmented
         value={mode}
@@ -119,7 +121,7 @@ export function MonthView({ monthStart }: { monthStart: LocalDate }) {
                   onClick={() => nav.goWeekOf(d)}
                   className={`min-h-16 rounded-lg p-1 flex flex-col items-center gap-1 ${inMonth ? '' : 'opacity-35'} ${
                     d === today ? 'ring-2 ring-accent' : ''
-                  } ${goal ? 'bg-accent/15' : 'active:bg-raised'}`}
+                  } ${goal?.kind === 'main' ? 'bg-accent/15' : 'active:bg-raised'}`}
                   aria-label={label}
                   title={label}
                 >
@@ -146,7 +148,12 @@ export function MonthView({ monthStart }: { monthStart: LocalDate }) {
                       ))}
                     </span>
                   )}
-                  {goal && <span className="text-[10px] leading-none text-accent font-semibold">🏁</span>}
+                  {goal &&
+                    (goal.kind === 'milestone' ? (
+                      <span className="text-[9px] leading-none font-bold px-1 py-0.5 rounded bg-sport">{formatDuration((goal.durationMin ?? 360) * 60)}</span>
+                    ) : (
+                      <span className="text-[10px] leading-none text-accent font-semibold">🏁</span>
+                    ))}
                 </button>
               );
             })}

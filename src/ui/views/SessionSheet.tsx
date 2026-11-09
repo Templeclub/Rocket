@@ -161,6 +161,12 @@ export function SessionSheet({ id }: { id: string }) {
           </button>
         )}
 
+        {session.milestone && pending && (
+          <button onClick={() => nav.open({ kind: 'longride' })} className="w-full h-11 rounded-xl bg-accent-soft text-accent font-semibold">
+            Changer de jour ou de durée
+          </button>
+        )}
+
         <ContentView c={session} settings={settings} />
 
         <section className="rounded-xl border border-line p-3">

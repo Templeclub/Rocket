@@ -257,3 +257,57 @@ describe('import Strava', () => {
     expect(linked[0].source).toBe('strava');
   });
 });
+
+import { addDays } from '../engine/dates';
+import { getLongRide, placeLongRide, removeLongRide } from './milestone';
+
+describe('sortie de 6 h en mars', () => {
+  const week = async (w: string) => d.sessions.where('date').between(w, addDays(w, 7), true, false).toArray();
+  const endurance = (list: { sport: string; targetDurationMin: number; status: string }[]) =>
+    list.filter((s) => s.status !== 'cancelled' && s.sport !== 'football').reduce((t, s) => t + s.targetDurationMin, 0) / 60;
+
+  it('posée le samedi du long week-end : remplace la grande journée, le reste est raccourci, une seule séance par jour', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    const before = await week('2027-03-08');
+    expect(before.find((s) => s.date === '2027-03-13')!.title).toMatch(/Bloc J2/);
+    await placeLongRide('2027-03-13', 360, { today: '2026-11-09' }, d);
+    const after = await week('2027-03-08');
+    const sat = after.filter((s) => s.date === '2027-03-13');
+    expect(sat).toHaveLength(1);
+    expect(sat[0]).toMatchObject({ title: 'Sortie de 6h', targetDurationMin: 360, milestone: true, confirmed: true, priority: 'key' });
+    expect(after.find((s) => s.date === '2027-03-12')!.targetDurationMin).toBeLessThan(before.find((s) => s.date === '2027-03-12')!.targetDurationMin);
+    const plan = (await d.weeks.get('2027-03-08'))!;
+    expect(Math.abs(endurance(after) - plan.targetHours)).toBeLessThanOrEqual(0.75);
+    expect((await getLongRide(d))).toMatchObject({ date: '2027-03-13', durationMin: 360, kind: 'milestone' });
+  });
+
+  it('déplacée au 21 mars : le long week-end retrouve sa grande journée ; annulable', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    await placeLongRide('2027-03-13', 360, { today: '2026-11-09' }, d);
+    const undo = await placeLongRide('2027-03-21', 420, { today: '2026-11-09' }, d);
+    expect((await week('2027-03-08')).find((s) => s.date === '2027-03-13')!.title).toMatch(/Bloc J2/);
+    expect((await week('2027-03-15')).find((s) => s.date === '2027-03-21')!.title).toBe('Sortie de 7h');
+    expect((await getLongRide(d))?.date).toBe('2027-03-21');
+    await undo();
+    expect((await getLongRide(d))?.date).toBe('2027-03-13');
+    expect((await week('2027-03-08')).find((s) => s.date === '2027-03-13')!.title).toBe('Sortie de 6h');
+  });
+
+  it('gardée quand on recalcule le programme (et pas proposée à la suppression)', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    await placeLongRide('2027-03-13', 360, { today: '2026-11-09' }, d);
+    const r = await generateProgram({ fromWeek: '2026-11-16', today: '2026-11-16', removeManual: true }, d);
+    expect(r.removedManual).toBe(0);
+    const sat = (await week('2027-03-08')).filter((s) => s.date === '2027-03-13');
+    expect(sat).toHaveLength(1);
+    expect(sat[0].title).toBe('Sortie de 6h');
+  });
+
+  it('retirée : la semaine retrouve son programme', async () => {
+    await generateProgram({ today: '2026-11-06' }, d);
+    await placeLongRide('2027-03-13', 360, { today: '2026-11-09' }, d);
+    await removeLongRide({ today: '2026-11-09' }, d);
+    expect(await getLongRide(d)).toBeUndefined();
+    expect((await week('2027-03-08')).find((s) => s.date === '2027-03-13')!.title).toMatch(/Bloc J2/);
+  });
+});

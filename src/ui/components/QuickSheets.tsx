@@ -115,7 +115,12 @@ export function ActionsSheet({ id }: { id: string }) {
           </Action>
         </div>
 
-        {pending && (
+        {pending && session.milestone && (
+          <button onClick={() => nav.replace({ kind: 'longride' })} className="w-full h-12 rounded-2xl bg-accent-soft text-accent font-semibold">
+            Changer de jour ou de durée (calendrier de mars)
+          </button>
+        )}
+        {pending && !session.milestone && (
           <section>
             <h3 className="text-sm font-semibold mb-2">Reporter au</h3>
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">

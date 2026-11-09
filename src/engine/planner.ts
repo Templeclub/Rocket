@@ -130,6 +130,8 @@ export interface PlanInput {
   goal: Goal;
   settings: AppSettings;
   history?: PlanHistory;
+  /** Séances gardées (faites, manuelles, jalons) : leurs jours sont occupés et leur durée est déduite du volume. */
+  keep?: PlannedSession[];
   now?: number;
 }
 
@@ -379,26 +381,36 @@ export function buildWeek(week: WeekPlan, ctx: BuildCtx): PlannedSession[] {
   const loaded = phase === 'specific' && (specialIdx === 0 || block || ctx.lastLoadBeforeTaper);
   const round = (m: number) => Math.max(0, Math.floor(m / P.roundMin) * P.roundMin);
 
-  if (block && sat && sun) {
-    const days3 = blockFirstDay ? [blockFirstDay, sat, sun] : [sat, sun];
-    const shares = blockFirstDay ? P.blockShares : [P.backToBackShare, 1 - P.backToBackShare];
-    // Samedi le plus long (plafonné), les deux autres jours un peu moins.
-    const satMin = Math.min(round(rest * shares[days3.length === 3 ? 1 : 0]), longCap);
-    days3.forEach((d, i) => {
-      const isSat = d === sat;
-      const m = isSat ? satMin : Math.min(round(rest * shares[i]), satMin);
+  // Long week-end : vendredi (posé), samedi, dimanche ; un jour déjà pris (ex. la sortie de 6 h) est laissé tel quel.
+  const blockDays = block ? ([blockFirstDay, sat, sun].map((d, j) => (d ? { d, j } : null)).filter(Boolean) as { d: Day; j: number }[]) : [];
+  if (block && blockDays.length >= 2) {
+    const raw = blockDays.map(({ j }) => (blockFirstDay ? P.blockShares[j] : [0, P.backToBackShare, 1 - P.backToBackShare][j]));
+    const total = raw.reduce((t, x) => t + x, 0);
+    const shares = raw.map((x) => x / total);
+    const longest = Math.max(...shares);
+    const topMin = Math.min(round(rest * longest), longCap);
+    blockDays.forEach(({ d, j }, i) => {
+      const m = Math.min(round(rest * shares[i]), topMin);
       take(d);
       rides.push({
         day: d,
         min: m,
         opts: {
-          title: ctx.lastLoadBeforeTaper ? `Répétition générale J${i + 1}` : `Bloc J${i + 1}${loaded ? ' chargé' : ''}`,
+          title: ctx.lastLoadBeforeTaper ? `Répétition générale J${j + 1}` : `Bloc J${j + 1}${loaded ? ' chargé' : ''}`,
           loaded,
-          note: i === 0 && d === blockFirstDay && d.exc !== 'leave' ? 'Jour à poser (congé ou RTT).' : i > 0 ? 'Enchaînement : rester en Z2, tester la récupération et l’alimentation.' : undefined,
+          note: j === 0 && d.exc !== 'leave' ? 'Jour à poser (congé ou RTT).' : j > 0 ? 'Enchaînement : rester en Z2, tester la récupération et l’alimentation.' : undefined,
         },
       });
     });
     rest -= rides.reduce((t, r) => t + r.min, 0);
+  } else if (!sat && sun && !block) {
+    // Samedi déjà pris (sortie posée à la main) : le dimanche reste une sortie d'endurance modérée.
+    const m = Math.min(round(rest * 0.6), longCap);
+    if (m >= 45) {
+      take(sun);
+      rides.push({ day: sun, min: m, opts: { priority: 'optional', title: 'Endurance Z2 extérieur' } });
+      rest -= m;
+    }
   } else if (sat) {
     // Samedi : la sortie longue d'abord (c'est elle qui prépare au Desertus), sans écraser le reste de la semaine.
     // Le samedi progresse de +45 min par marche ; il laisse environ 2h30 au dimanche et à la semaine quand le volume le permet.
@@ -545,6 +557,9 @@ export function generatePlan(input: PlanInput): PlanOutput {
   const sessions: PlannedSession[] = [];
   weeks.forEach((w, i) => {
     ctx.lastLoadBeforeTaper = i === lastLoadIdx && w.phase === 'specific';
+    const kept = (input.keep ?? []).filter((k) => k.status !== 'cancelled' && diffDays(k.date, w.weekStart) >= 0 && diffDays(k.date, w.weekStart) < 7);
+    ctx.occupied = new Set(kept.map((k) => k.date));
+    ctx.keptMin = kept.filter((k) => k.sport !== 'football' && k.sport !== 'enduro').reduce((t, k) => t + k.targetDurationMin, 0);
     sessions.push(...buildWeek(w, ctx));
   });
   return { weeks, sessions };

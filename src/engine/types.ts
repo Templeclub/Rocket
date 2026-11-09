@@ -72,6 +72,8 @@ export interface PlannedSession extends SessionContent {
   alternative?: SessionContent;
   /** Séance confirmée par moi ; sinon « recommandée » par le programme. */
   confirmed?: boolean;
+  /** Séance d'un jalon (ex. sortie de 6 h) : gardée lors des recalculs. */
+  milestone?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -133,6 +135,10 @@ export interface Goal {
   distanceKm?: number;
   elevationM?: number;
   maxDays?: number;
+  /** Jalon « sortie longue » : durée visée et séance correspondante. */
+  milestoneType?: 'longRide';
+  durationMin?: number;
+  sessionId?: string;
 }
 
 export interface Profile {

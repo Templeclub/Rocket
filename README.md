@@ -5,7 +5,7 @@
 PWA personnelle de planification d’entraînement vers le **Desertus Bikus** (10 avril 2027, 1 300 km, 13 000 m D+, 7 jours max).
 Mobile Android, une main, en français, données locales uniquement, fuseau Europe/Paris.
 
-**État : `main` à jour (motivation comprise). Méthode de planification v2 sur la branche `methode-v2`.**
+**État : `main` à jour (motivation comprise). Méthode v2 et sortie de 6 h en mars sur la branche `sortie-6h`.**
 
 ## Utilisation
 
@@ -55,6 +55,13 @@ En haut de chaque semaine en cours ou à venir :
   - en retard → « Recalculer le programme » (repart du rythme réel, sans forcer) ;
   - en avance → « Recalculer » ou « Relever le pic à … et recalculer » si ton rythme dépasse le pic ;
 - **ce qui ne colle plus** (séance un jour à Paris, autre chose qu’un foot un lundi ou jeudi, foot manquant, intense à côté du foot, deux séances le même jour), sur les séances recommandées comme confirmées → « Replanifier la semaine » : aperçu avant/après, puis « Appliquer » (annulable). Les séances faites et ajoutées à la main sont gardées ; une séance identique reste en place avec sa confirmation.
+
+### Sortie de 6 h et plus (mars)
+Une carte dans la vue Mois (et un lien dans « Ma progression », plus longue sortie) ouvre le calendrier de mars :
+- **durée** 6, 7, 8 ou 9 h (km estimés), option **vélo chargé** ;
+- chaque jour est **recommandé ★** (samedi des longs week-ends : la grande journée devient la sortie longue), **possible** (autres week-ends, vendredi posé) ou **grisé** (travail, Paris, foot, affûtage, déjà fait), avec la raison et la séance remplacée ;
+- poser ou déplacer la sortie **réajuste la semaine** autour (les autres séances proposées sont recalculées, rien d’autre n’est touché) ; annulable depuis le bandeau ;
+- la séance est un jalon : confirmée, gardée lors d’un recalcul du programme, et « ⋯ » renvoie vers ce calendrier plutôt que vers un report simple.
 
 ### Phases du programme
 Un fil en haut des vues Semaine et Mois : une case par semaine colorée par phase (Base sable, Développement abricot, Spécifique terre cuite, Affûtage vert), plus basse pour les semaines allégées ou de voyage, plus haute pour les blocs ; la semaine affichée est encadrée, un tap ouvre une semaine. Dans le calendrier du mois, chaque ligne prend la teinte de sa phase, avec le nom de la phase quand elle change.
@@ -131,7 +138,7 @@ Volume **d’endurance** (vélo, course, natation ; le foot s’ajoute) — **m�
 ```bash
 npm install
 npm run dev        # serveur local
-npm test           # tests unitaires (Vitest) : 171 tests
+npm test           # tests unitaires (Vitest) : 180 tests
 npm run build      # vérification TypeScript + build PWA
 npm run icons      # régénère les icônes PNG depuis public/favicon.svg
 ```
@@ -147,6 +154,7 @@ src/engine/        TypeScript pur, testé, sans React ni Dexie
   workouts.ts      séances paramétrées (HT ERG, extérieur FC/RPE, sortie longue, course, natation)
   review.ts        rythme réel, plafond, recommandations chiffrées, semaine à confirmer
   evaluate.ts      signalements, suivi du programme (retard/avance), reconstruction d’une semaine
+  milestone.ts     créneaux de la sortie de 6 h en mars (recommandé, possible, indisponible)
   gamification.ts  jauge de préparation, semaines tenues (joker), points plafonnés et niveaux
   strava.ts        classement des activités Strava (titre puis type), conversion, rapprochement jour + discipline
 netlify/functions/strava.mjs   relais Strava (échange du code, jetons, activités), sans stockage

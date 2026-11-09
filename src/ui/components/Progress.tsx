@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 import { CONFIG } from '../../engine/config';
-import { addDays, isoWeekday, labelWeek, startOfWeek } from '../../engine/dates';
+import { addDays, isoWeekday, labelDay, labelWeek, startOfWeek } from '../../engine/dates';
+import { useLongRide } from './LongRide';
 import type { GameState, HeldStatus } from '../../engine/gamification';
 import { PHASE_LABEL } from '../../engine/planner';
 import { useNav, useToday } from '../hooks';
@@ -66,6 +67,7 @@ export function ProgressSheet() {
   const today = useToday();
   const g = useGame();
   const weeks = useLiveQuery(() => db.weeks.orderBy('weekStart').toArray(), []) ?? [];
+  const longRide = useLongRide();
   if (!g) return null;
   const { readiness: r, held: h, xp } = g;
   const byWeek = new Map(h.weeks.map((w) => [w.weekStart, w]));
@@ -127,6 +129,11 @@ export function ProgressSheet() {
                   <div className="h-full bg-sport rounded-full" style={{ width: `${p.score * 100}%` }} />
                 </div>
                 <div className="text-xs text-muted mt-1">{p.detail}</div>
+                {p.key === 'longest' && (
+                  <button onClick={() => nav.replace({ kind: 'longride' })} className="mt-1 text-xs font-semibold text-accent">
+                    {longRide ? `${longRide.name} prévue le ${labelDay(longRide.date)} · modifier` : 'Planifier ma sortie de 6 h en mars'}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

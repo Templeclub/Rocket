@@ -9,7 +9,7 @@ import { useToday } from '../hooks';
 /** Bandeau d'objectif : compte à rebours, objectif, et avancement d'endurance de la semaine. */
 export function GoalHero({ weekStart, sessions, activities }: { weekStart: LocalDate; sessions: PlannedSession[]; activities: Activity[] }) {
   const today = useToday();
-  const goal = useLiveQuery(() => db.goals.where('date').aboveOrEqual(today).first(), [today]);
+  const goal = useLiveQuery(async () => (await db.goals.toArray()).find((g) => g.kind === 'main' && g.date >= today), [today]);
   if (!goal) return null;
   const days = diffDays(goal.date, today);
   const e = summarize(sessions, activities, weekStart).endurance;

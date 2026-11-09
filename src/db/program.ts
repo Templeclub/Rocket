@@ -48,10 +48,17 @@ export async function generateProgram(
     0,
     ...activities.filter((a) => a.sport === 'gravel' && diffDays(fromWeek, a.date) > 0 && diffDays(fromWeek, a.date) <= 28).map((a) => a.durationSec / 60),
   );
+  // Les jours déjà passés de la semaine de départ ne sont pas touchés.
+  const from = opts.today > fromWeek ? opts.today : fromWeek;
+  const existing = await d.sessions.where('date').aboveOrEqual(fromWeek).toArray();
+  const replaced = (x: PlannedSession) =>
+    x.date >= from && ((x.origin === 'generated' && x.status !== 'done') || (opts.removeManual && x.origin === 'manual' && isPending(x) && !x.milestone));
+  const keep = existing.filter((x) => !replaced(x) && x.status !== 'cancelled');
   const out = generatePlan({
     startWeek: fromWeek,
     goal,
     settings,
+    keep,
     history: {
       weeks: prior,
       rhythmHours: rhythm ? rhythm.weeks.map((w) => w.hours).reverse() : undefined,
@@ -60,12 +67,10 @@ export async function generateProgram(
   });
 
   let removedManual = 0;
-  // Les jours déjà passés de la semaine de départ ne sont pas touchés.
-  const from = opts.today > fromWeek ? opts.today : fromWeek;
   const newSessions = out.sessions.filter((s) => s.date >= from);
   await d.transaction('rw', d.sessions, d.weeks, async () => {
     const future = await d.sessions.where('date').aboveOrEqual(from).toArray();
-    const toDelete = future.filter((s) => (s.origin === 'generated' && s.status !== 'done') || (opts.removeManual && s.origin === 'manual' && isPending(s)));
+    const toDelete = future.filter(replaced);
     removedManual = toDelete.filter((s) => s.origin === 'manual').length;
     await d.sessions.bulkDelete(toDelete.map((s) => s.id));
     await d.weeks.where('weekStart').aboveOrEqual(fromWeek).delete();
@@ -76,7 +81,7 @@ export async function generateProgram(
 }
 
 export async function countManualFrom(fromWeek: LocalDate, d: AsceseDB = db): Promise<number> {
-  return (await d.sessions.where('date').aboveOrEqual(fromWeek).toArray()).filter((s) => s.origin === 'manual' && isPending(s)).length;
+  return (await d.sessions.where('date').aboveOrEqual(fromWeek).toArray()).filter((s) => s.origin === 'manual' && isPending(s) && !s.milestone).length;
 }
 
 export async function loadReview(targetWeek: LocalDate, today: LocalDate, d: AsceseDB = db): Promise<WeekReview> {

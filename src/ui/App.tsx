@@ -10,6 +10,7 @@ import { CloudAutoBackup } from './CloudAutoBackup';
 import { ThemeSync } from './ThemeSync';
 import { CelebrationLayer, GameWatcher } from './Celebrations';
 import { ProgressSheet } from './components/Progress';
+import { LongRideSheet } from './components/LongRide';
 import { NavCtx, type Nav, type Overlay } from './hooks';
 import { MonthView } from './views/MonthView';
 import { WeekView } from './views/WeekView';
@@ -39,6 +40,8 @@ function OverlayView({ o }: { o: Overlay }) {
       return <ReplanSheet weekStart={o.weekStart} />;
     case 'progress':
       return <ProgressSheet />;
+    case 'longride':
+      return <LongRideSheet />;
     case 'paris':
       return <ParisSheet weekStart={o.weekStart} />;
     case 'settings':

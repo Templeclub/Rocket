@@ -23,7 +23,8 @@ export type Overlay =
   | { kind: 'replan'; weekStart: LocalDate }
   | { kind: 'paris'; weekStart: LocalDate }
   | { kind: 'settings'; section: string }
-  | { kind: 'progress' };
+  | { kind: 'progress' }
+  | { kind: 'longride' };
 
 export interface Nav {
   open: (o: Overlay) => void;
