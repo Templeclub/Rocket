@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="120" y1="112" x2="448" y2="360">
-      <stop offset="0" stop-color="#f04a12"/>
-      <stop offset="1" stop-color="#e01e4f"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="#f2f4f7"/>
-  <path d="M64 404 L152 320 L174 322 L236 238 L254 240 L298 112 L352 210 L368 208 L448 404 Z" fill="url(#g)"/>
-  <path d="M64 404 L152 320 L174 322 L236 238 L254 240 L298 112" fill="none" stroke="#e01e4f" stroke-width="16" stroke-linejoin="round"/>
-  <circle cx="298" cy="112" r="20" fill="#fff" stroke="#e01e4f" stroke-width="11"/>
-  <path d="M48 404 L464 404" stroke="#0b1220" stroke-width="10" stroke-linecap="round"/>
+  <rect width="512" height="512" rx="112" fill="#fff6e5"/>
+  <g transform="translate(-14 -6)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="381" cy="159" r="55" fill="#0b1220"/>
+    <circle cx="372" cy="150" r="55" fill="#0b1220"/>
+    <circle cx="372" cy="150" r="46" fill="#ffd23f"/>
+    <path d="M92 404 C101.3 386.7 134 319.7 148 300 C162 280.3 165 307.7 176 286 C187 264.3 202.3 199 214 170 C225.7 141 235.3 113.7 246 112 C256.7 110.3 267.3 131 278 160 C288.7 189 299.3 259.3 310 286 C320.7 312.7 330.3 320 342 320 C353.7 320 367.3 286.7 380 286 C392.7 285.3 407 314.3 418 316 C429 317.7 441.3 299.3 446 296" transform="translate(9 9)" stroke="#0b1220" stroke-width="54"/>
+    <path d="M92 404 C101.3 386.7 134 319.7 148 300 C162 280.3 165 307.7 176 286 C187 264.3 202.3 199 214 170 C225.7 141 235.3 113.7 246 112 C256.7 110.3 267.3 131 278 160 C288.7 189 299.3 259.3 310 286 C320.7 312.7 330.3 320 342 320 C353.7 320 367.3 286.7 380 286 C392.7 285.3 407 314.3 418 316 C429 317.7 441.3 299.3 446 296" stroke="#0b1220" stroke-width="54"/>
+    <path d="M92 404 C101.3 386.7 134 319.7 148 300 C162 280.3 165 307.7 176 286 C187 264.3 202.3 199 214 170 C225.7 141 235.3 113.7 246 112 C256.7 110.3 267.3 131 278 160 C288.7 189 299.3 259.3 310 286 C320.7 312.7 330.3 320 342 320 C353.7 320 367.3 286.7 380 286 C392.7 285.3 407 314.3 418 316 C429 317.7 441.3 299.3 446 296" stroke="#f04a12" stroke-width="34"/>
+  </g>
 </svg>

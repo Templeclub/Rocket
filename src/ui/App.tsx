@@ -114,7 +114,7 @@ export function App() {
           <header className="sticky top-0 z-20 bg-bg/90 backdrop-blur-md px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-end gap-2">
             <h1 className="font-display text-2xl font-semibold tracking-tight">{cap(title)}</h1>
             <span className="ml-auto mb-1 flex items-center gap-1.5 text-ink">
-              <LogoMark size={18} />
+              <LogoMark size={22} />
               <span className="font-display text-sm font-extrabold italic tracking-[0.18em] text-sport uppercase">Ascèse</span>
             </span>
           </header>

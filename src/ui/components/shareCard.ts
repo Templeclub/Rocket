@@ -10,35 +10,39 @@ import { LOGO } from './Logo';
 const W = 1080;
 const H = 1350;
 
-/** Dessine l'icône Ascèse (tuile claire + profil d'altitude) dans un carré de `size` px. */
+/** Dessine l'icône Ascèse (tuile crème, geste orange et soleil façon autocollant) dans un carré de `size` px. */
 function drawLogo(x: CanvasRenderingContext2D, ox: number, oy: number, size: number) {
+  const { path, sun, stroke, outline, shadow, ink } = LOGO;
+  const line = new Path2D(path);
   x.save();
   x.translate(ox, oy);
   x.scale(size / 512, size / 512);
-  x.fillStyle = '#f2f4f7';
+  x.fillStyle = LOGO.cream;
   x.beginPath();
   x.roundRect(0, 0, 512, 512, 112);
   x.fill();
-  const g = x.createLinearGradient(120, 112, 448, 360);
-  g.addColorStop(0, LOGO.orange);
-  g.addColorStop(1, LOGO.red);
-  x.fillStyle = g;
-  x.fill(new Path2D(LOGO.area));
-  x.strokeStyle = LOGO.red;
-  x.lineJoin = 'round';
-  x.lineCap = 'butt';
-  x.lineWidth = 16;
-  x.stroke(new Path2D(LOGO.climb));
-  x.beginPath();
-  x.arc(LOGO.summit.x, LOGO.summit.y, LOGO.summit.r, 0, Math.PI * 2);
-  x.fillStyle = '#fff';
-  x.fill();
-  x.lineWidth = 11;
-  x.stroke();
-  x.strokeStyle = '#0b1220';
+  x.translate(-14, -6);
+  const disc = (cx: number, cy: number, r: number, color: string) => {
+    x.beginPath();
+    x.arc(cx, cy, r, 0, Math.PI * 2);
+    x.fillStyle = color;
+    x.fill();
+  };
+  disc(sun.x + shadow, sun.y + shadow, sun.r + outline, ink);
+  disc(sun.x, sun.y, sun.r + outline, ink);
+  disc(sun.x, sun.y, sun.r, LOGO.yellow);
   x.lineCap = 'round';
-  x.lineWidth = 10;
-  x.stroke(new Path2D(LOGO.base));
+  x.lineJoin = 'round';
+  x.strokeStyle = ink;
+  x.lineWidth = stroke + outline * 2;
+  x.save();
+  x.translate(shadow, shadow);
+  x.stroke(line);
+  x.restore();
+  x.stroke(line);
+  x.strokeStyle = LOGO.orange;
+  x.lineWidth = stroke;
+  x.stroke(line);
   x.restore();
 }
 

@@ -9,7 +9,7 @@ const page = await browser.newPage();
 async function render(size, file, maskable = false) {
   await page.setViewportSize({ width: size, height: size });
   const inner = maskable
-    ? `<div style="width:${size}px;height:${size}px;background:#f2f4f7;display:grid;place-items:center"><div style="width:${size * 0.8}px;height:${size * 0.8}px">${svg.replace('rx="112"', 'rx="0"')}</div></div>`
+    ? `<div style="width:${size}px;height:${size}px;background:#fff6e5;display:grid;place-items:center"><div style="width:${size * 0.8}px;height:${size * 0.8}px">${svg.replace('rx="112"', 'rx="0"')}</div></div>`
     : svg;
   await page.setContent(`<html><body style="margin:0;background:transparent">${inner}</body></html>`);
   await page.addStyleTag({ content: `svg{width:100%;height:100%;display:block} body>svg{width:${size}px;height:${size}px}` });
