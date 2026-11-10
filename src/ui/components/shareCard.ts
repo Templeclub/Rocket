@@ -5,9 +5,42 @@ import { addDays, diffDays, labelWeek, todayLocal } from '../../engine/dates';
 import type { GameState } from '../../engine/gamification';
 import { summarize } from '../../engine/stats';
 import { formatHours } from '../../engine/zones';
+import { LOGO } from './Logo';
 
 const W = 1080;
 const H = 1350;
+
+/** Dessine l'icône Ascèse (tuile claire + profil d'altitude) dans un carré de `size` px. */
+function drawLogo(x: CanvasRenderingContext2D, ox: number, oy: number, size: number) {
+  x.save();
+  x.translate(ox, oy);
+  x.scale(size / 512, size / 512);
+  x.fillStyle = '#f2f4f7';
+  x.beginPath();
+  x.roundRect(0, 0, 512, 512, 112);
+  x.fill();
+  const g = x.createLinearGradient(120, 112, 448, 360);
+  g.addColorStop(0, LOGO.orange);
+  g.addColorStop(1, LOGO.red);
+  x.fillStyle = g;
+  x.fill(new Path2D(LOGO.area));
+  x.strokeStyle = LOGO.red;
+  x.lineJoin = 'round';
+  x.lineCap = 'butt';
+  x.lineWidth = 16;
+  x.stroke(new Path2D(LOGO.climb));
+  x.beginPath();
+  x.arc(LOGO.summit.x, LOGO.summit.y, LOGO.summit.r, 0, Math.PI * 2);
+  x.fillStyle = '#fff';
+  x.fill();
+  x.lineWidth = 11;
+  x.stroke();
+  x.strokeStyle = '#0b1220';
+  x.lineCap = 'round';
+  x.lineWidth = 10;
+  x.stroke(new Path2D(LOGO.base));
+  x.restore();
+}
 
 export async function renderWeekCard(g: GameState, weekStart: string): Promise<Blob> {
   const end = addDays(weekStart, 7);
@@ -45,8 +78,10 @@ export async function renderWeekCard(g: GameState, weekStart: string): Promise<B
   const display = (size: number, weight = 900, italic = true) => `${italic ? 'italic ' : ''}${weight} ${size}px "Outfit Variable", system-ui, sans-serif`;
   const text = (size: number, weight = 600) => `${weight} ${size}px "Inter Variable", system-ui, sans-serif`;
 
+  drawLogo(x, 80, 70, 68);
+  x.fillStyle = '#fff';
   x.font = display(44, 800);
-  x.fillText('ASCÈSE', 80, 120);
+  x.fillText('ASCÈSE', 168, 120);
   x.font = text(40, 500);
   x.globalAlpha = 0.9;
   x.fillText(`Semaine du ${labelWeek(weekStart)}`, 80, 190);

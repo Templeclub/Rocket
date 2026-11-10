@@ -9,6 +9,7 @@ import { StravaAutoSync } from './StravaAutoSync';
 import { CloudAutoBackup } from './CloudAutoBackup';
 import { ThemeSync } from './ThemeSync';
 import { CelebrationLayer, GameWatcher } from './Celebrations';
+import { LogoMark } from './components/Logo';
 import { ProgressSheet } from './components/Progress';
 import { LongRideSheet } from './components/LongRide';
 import { NavCtx, type Nav, type Overlay } from './hooks';
@@ -112,7 +113,10 @@ export function App() {
         <div className="min-h-dvh max-w-xl mx-auto flex flex-col">
           <header className="sticky top-0 z-20 bg-bg/90 backdrop-blur-md px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-end gap-2">
             <h1 className="font-display text-2xl font-semibold tracking-tight">{cap(title)}</h1>
-            <span className="ml-auto mb-1 font-display text-sm font-extrabold italic tracking-[0.18em] text-sport uppercase">Ascèse</span>
+            <span className="ml-auto mb-1 flex items-center gap-1.5 text-ink">
+              <LogoMark size={18} />
+              <span className="font-display text-sm font-extrabold italic tracking-[0.18em] text-sport uppercase">Ascèse</span>
+            </span>
           </header>
           <main className="flex-1 px-3 pb-44">
             {view === 'week' && <WeekView weekStart={weekStart} focusDate={focusDate} />}
